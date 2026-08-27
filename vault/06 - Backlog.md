@@ -46,7 +46,7 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 
 - [ ] **MGT-001** Página de contas e personagens com arquivamento seguro.
 - [x] **MGT-002** Página de dungeons/atividades, seleção da rotina e metas padrão.
-- [ ] **HIS-001** Histórico por data, conta, personagem e atividade.
+- [x] **HIS-001** Histórico por data, conta, personagem e atividade.
 - [ ] **HIS-002** Edição auditável de sessões e lançamentos.
 - [ ] **INV-001** Catálogo de itens e ledger de inventário.
 - [ ] **FIN-001** Vendas e ledger financeiro em gold/moeda.

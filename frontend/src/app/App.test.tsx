@@ -23,6 +23,18 @@ function createGateway(overrides: Partial<AppGateway> = {}): AppGateway {
     setDashboardModuleVisible: async (moduleKey, enabled) => ({ schemaVersion: 1, visibility: { "daily-summary": true, "recent-drops": true, "monthly-performance": true, [moduleKey]: enabled } }),
     resetDashboardLayout: async () => ({ schemaVersion: 1, visibility: { "daily-summary": true, "recent-drops": true, "monthly-performance": true } }),
     createWorkspace: async (name) => ({ name }),
+    getHistoryOverview: async () => ({ state: "empty", days: [] }),
+    getHistoryDayDetail: async (activityDate) => ({
+      state: "ready",
+      activityDate,
+      runsCompleted: 0,
+      goldEarned: 0,
+      pveBagsEarned: 0,
+      characters: [],
+      towerSessions: [],
+      drops: [],
+    }),
+    recordPveBagQuote: async (unitValueGold) => ({ quoteId: "quote-1", unitValueGold, observedAt: "2026-08-26T20:00:00" }),
     ...overrides,
   };
 }
@@ -48,7 +60,7 @@ describe("App", () => {
     expect(await screen.findByText("Bridge indisponível")).toBeInTheDocument();
   });
 
-  it("shows the separate predicted dungeon gold when the dashboard is ready", async () => {
+  it("shows the separate predicted dungeon gold and toggles on hover to include bag sales", async () => {
     const gateway = createGateway({
       getToday: async () => ({
         state: "ready", activityDate: "2026-08-26", selectedDungeons: 90,
@@ -56,8 +68,22 @@ describe("App", () => {
       }),
     });
     render(<App gateway={gateway} />);
-    expect(await screen.findByText("Ouro estimado hoje")).toBeInTheDocument();
+    const cardTitle = await screen.findByText("Ouro estimado hoje");
+    expect(cardTitle).toBeInTheDocument();
     expect(screen.getAllByText("469.750")).toHaveLength(2);
+
+    // Hover over the gold card panel to see the combined estimate with bag sales
+    const goldCard = cardTitle.closest(".stat-card");
+    expect(goldCard).not.toBeNull();
+    if (goldCard) {
+      fireEvent.mouseEnter(goldCard);
+      expect(screen.getByText("Ouro estimado c/ venda de sacos")).toBeInTheDocument();
+      expect(screen.getByText("919.750")).toBeInTheDocument();
+
+      fireEvent.mouseLeave(goldCard);
+      expect(screen.getByText("Ouro estimado hoje")).toBeInTheDocument();
+      expect(screen.getAllByText("469.750")).toHaveLength(2);
+    }
   });
 
   it("renders recent drops and actual monthly gold from the activity read model", async () => {
@@ -146,4 +172,115 @@ describe("App", () => {
 
     await waitFor(() => expect(setDashboardModuleVisible).toHaveBeenCalledWith("monthly-performance", false));
   });
+
+  it("toggles global routine dungeon without full page reload", async () => {
+    const setDungeonActive = vi.fn(async () => ({ updated: true }));
+    const gateway = createGateway({
+      getManagementOverview: async () => ({
+        state: "ready", workspaceName: "Farm", accounts: [],
+        dungeons: [{ id: "dungeon-primata", name: "Primata", category: "dungeon", targetAmount: 5, enabled: false, sortOrder: 1, goldMissionOne: 0, goldMissionTwo: 0, pveBags: 5 }],
+      }),
+      setDungeonActive,
+    });
+    render(<App gateway={gateway} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Personagens" }));
+    const checkbox = await screen.findByRole("checkbox", { name: /Primata/ });
+    expect(checkbox).not.toBeChecked();
+
+    fireEvent.click(checkbox);
+    await waitFor(() => expect(setDungeonActive).toHaveBeenCalledWith("dungeon-primata", true));
+  });
+
+  it("opens the history page and displays past days and detail breakdown", async () => {
+    const getHistoryOverview = vi.fn(async () => ({
+      state: "ready" as const,
+      days: [
+        {
+          activityDate: "2026-08-26",
+          runsCompleted: 25,
+          charactersCompleted: 5,
+          charactersTotal: 10,
+          goldEarned: 35000,
+          pveBagsEarned: 25,
+          towerCompleted: 1,
+          towerTotal: 1,
+          dropsCount: 1,
+        },
+      ],
+    }));
+
+    const getHistoryDayDetail = vi.fn(async (activityDate: string) => ({
+      state: "ready" as const,
+      activityDate,
+      runsCompleted: 25,
+      goldEarned: 35000,
+      pveBagsEarned: 25,
+      characters: [
+        {
+          id: "character-1",
+          name: "Star01",
+          className: "Ranger",
+          accountName: "Conta Principal",
+          completedDungeons: 5,
+          selectedDungeons: 5,
+          dungeons: [
+            {
+              activityId: "dungeon-1",
+              name: "Palácio de Proteção do Selo",
+              completed: true,
+              targetAmount: 5,
+              gold: 7000,
+              pveBags: 5,
+            },
+          ],
+        },
+      ],
+      towerSessions: [],
+      drops: [{ itemName: "Cristal Mágico", quantity: 2, obtainedAt: "2026-08-26T21:00:00" }],
+    }));
+
+    const gateway = createGateway({ getHistoryOverview, getHistoryDayDetail });
+    render(<App gateway={gateway} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Histórico" }));
+    expect(await screen.findByText("Histórico de farm")).toBeInTheDocument();
+    expect(await screen.findByText("25 runs")).toBeInTheDocument();
+    expect(await screen.findByText("Star01")).toBeInTheDocument();
+    expect(await screen.findByText("Palácio de Proteção do Selo")).toBeInTheDocument();
+    expect(await screen.findByText("Cristal Mágico")).toBeInTheDocument();
+  });
+
+  it("opens the pve bag price dialog and records a new quote", async () => {
+    const recordPveBagQuote = vi.fn(async (unitValueGold: number) => ({
+      quoteId: "quote-1",
+      unitValueGold,
+      observedAt: "2026-08-26T20:00:00",
+    }));
+    const gateway = createGateway({
+      getToday: async () => ({
+        state: "ready",
+        activityDate: "2026-08-26",
+        selectedDungeons: 9,
+        estimatedGold: 7000,
+        estimatedPveBags: 5,
+        estimatedPveBagMarketValue: 5000,
+        pveBagUnitValueGold: 1000,
+      }),
+      recordPveBagQuote,
+    });
+    render(<App gateway={gateway} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Preço Saco PvE" }));
+    expect(await screen.findByText("Preço do Saco PvE")).toBeInTheDocument();
+    expect(screen.getByText(/1\.000 Gold/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Novo preço unitário em Gold"), { target: { value: "1350" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar cotação" }));
+
+    await waitFor(() => expect(recordPveBagQuote).toHaveBeenCalledWith(1350));
+  });
 });
+
+
+

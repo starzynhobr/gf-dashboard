@@ -79,6 +79,18 @@ export class QtGateway implements AppGateway {
     return this.invoke<{ name: string }>("workspace.create", { name });
   }
 
+  getHistoryOverview(filter?: import("./AppGateway").HistoryFilterInput): Promise<import("./AppGateway").HistoryOverviewResult> {
+    return this.invoke("history.overview", { ...filter });
+  }
+
+  getHistoryDayDetail(activityDate: string, filter?: import("./AppGateway").HistoryFilterInput): Promise<import("./AppGateway").HistoryDayDetailResult> {
+    return this.invoke("history.dayDetail", { activityDate, ...filter });
+  }
+
+  recordPveBagQuote(unitValueGold: number, source?: string): Promise<{ quoteId: string; unitValueGold: number; observedAt: string }> {
+    return this.invoke("market.recordPveBagQuote", { unitValueGold, source });
+  }
+
   private async invoke<T>(method: string, payload: Record<string, unknown>): Promise<T> {
     const bridge = await this.getBridge();
     const requestId = crypto.randomUUID();

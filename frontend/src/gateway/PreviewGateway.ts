@@ -37,6 +37,7 @@ export class PreviewGateway implements AppGateway {
       estimatedGold: 469750,
       estimatedPveBags: 450,
       estimatedPveBagMarketValue: 450000,
+      pveBagUnitValueGold: 1000,
     });
   }
 
@@ -150,5 +151,84 @@ export class PreviewGateway implements AppGateway {
 
   createWorkspace(name: string): Promise<{ name: string }> {
     return Promise.resolve({ name });
+  }
+
+  getHistoryOverview(): Promise<import("./AppGateway").HistoryOverviewResult> {
+    return Promise.resolve({
+      state: "ready",
+      days: [
+        {
+          activityDate: "2026-08-26",
+          runsCompleted: 275,
+          charactersCompleted: 6,
+          charactersTotal: 10,
+          goldEarned: 310000,
+          pveBagsEarned: 250,
+          towerCompleted: 1,
+          towerTotal: 1,
+          dropsCount: 5,
+        },
+        {
+          activityDate: "2026-08-25",
+          runsCompleted: 250,
+          charactersCompleted: 5,
+          charactersTotal: 10,
+          goldEarned: 290000,
+          pveBagsEarned: 230,
+          towerCompleted: 0,
+          towerTotal: 0,
+          dropsCount: 2,
+        },
+      ],
+    });
+  }
+
+  getHistoryDayDetail(activityDate: string): Promise<import("./AppGateway").HistoryDayDetailResult> {
+    return Promise.resolve({
+      state: "ready",
+      activityDate,
+      runsCompleted: 275,
+      goldEarned: 310000,
+      pveBagsEarned: 250,
+      characters: previewCharacters.characters.map((character) => ({
+        id: character.id,
+        name: character.name,
+        className: character.className,
+        accountName: character.accountName,
+        completedDungeons: character.completedDungeons,
+        selectedDungeons: character.selectedDungeons,
+        dungeons: dungeonNames.map((name, index) => ({
+          activityId: `preview-dungeon-${index + 1}`,
+          name,
+          completed: index < character.completedDungeons,
+          targetAmount: 5,
+          gold: 7000 - index * 350,
+          pveBags: 5,
+        })),
+      })),
+      towerSessions: [
+        {
+          sessionId: "preview-tower-1",
+          completed: true,
+          costGold: 25000,
+          participantNames: ["Star01", "Star02"],
+          drops: [
+            { itemName: "Pedra da Alma Brilhante", quantity: 1, obtainedAt: `${activityDate}T20:45:00` },
+          ],
+        },
+      ],
+      drops: [
+        { itemName: "Pedra da Alma Brilhante", quantity: 1, obtainedAt: `${activityDate}T20:45:00` },
+        { itemName: "Pergaminho da Experiência", quantity: 1, obtainedAt: `${activityDate}T13:10:00` },
+      ],
+    });
+  }
+
+  recordPveBagQuote(unitValueGold: number): Promise<{ quoteId: string; unitValueGold: number; observedAt: string }> {
+    return Promise.resolve({
+      quoteId: "preview-quote-1",
+      unitValueGold,
+      observedAt: new Date().toISOString(),
+    });
   }
 }

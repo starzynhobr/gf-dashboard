@@ -1,0 +1,1 @@
+Leia AGENTS.md e o vault antes de implementar.

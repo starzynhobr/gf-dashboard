@@ -13,6 +13,7 @@ class TodayEstimate:
     estimated_gold: Gold
     estimated_pve_bags: int
     estimated_pve_bag_market_value: Gold | None
+    pve_bag_unit_value: Gold | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,3 +101,57 @@ class TodayActivityOverview:
     recent_drops: tuple[RecentDrop, ...]
     monthly_gold: tuple[MonthlyGoldPoint, ...]
     monthly_gold_total: Gold
+
+
+@dataclass(frozen=True, slots=True)
+class HistoryDaySummary:
+    activity_date: date
+    runs_completed: int
+    characters_completed: int
+    characters_total: int
+    gold_earned: Gold
+    pve_bags_earned: int
+    tower_completed: int
+    tower_total: int
+    drops_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class HistoryDungeonEntry:
+    activity_id: str
+    name: str
+    completed: bool
+    target_amount: int
+    gold: Gold
+    pve_bags: int
+
+
+@dataclass(frozen=True, slots=True)
+class HistoryCharacterDetail:
+    character_id: str
+    name: str
+    class_name: str
+    account_name: str
+    completed_dungeons: int
+    selected_dungeons: int
+    dungeons: tuple[HistoryDungeonEntry, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class HistoryTowerSession:
+    session_id: str
+    completed: bool
+    cost_gold: Gold
+    participant_names: tuple[str, ...]
+    drops: tuple[RecentDrop, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class HistoryDayDetail:
+    activity_date: date
+    runs_completed: int
+    gold_earned: Gold
+    pve_bags_earned: int
+    characters: tuple[HistoryCharacterDetail, ...]
+    tower_sessions: tuple[HistoryTowerSession, ...]
+    drops: tuple[RecentDrop, ...]

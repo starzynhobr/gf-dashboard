@@ -13,7 +13,7 @@ tipo: kanban
 
 ## Em andamento
 
-- [ ] DOM-001, DOM-004 e DOM-005 — Fechar arquivamento, produção genérica e regras/janelas ainda não expostas (edição de conta/personagem concluída)
+- [ ] Etapa 9 — Movimentos de inventário, vendas e ajustes explícitos (Histórico com filtros e breakdown diário concluído)
 - [ ] Etapas 5–6 — Fechar responsividade, shell sem moldura, virtualização e fallback textual do gráfico
 
 ## Bloqueado
@@ -44,6 +44,8 @@ tipo: kanban
 - [x] UI-008 — Resumo por personagem com seleção global e ciclos completos de cinco rodadas
 - [x] UI-010, UI-011 e CFG-003 — Registro/host de módulos, lazy loading, visibilidade persistida e restauração padrão
 - [x] MGT-002 — Seleção global da rotina de dungeons, herdada por novos personagens
+- [x] HST-001 — Histórico de farm com filtros por período, conta e personagem, listagem de dias e detalhamento completo
+- [x] DOM-008 & UI-012 — Modal e botão de cotação do Saco PvE no Farm de Hoje ao lado de Registrar Torre com recálculo automático
 
 %% kanban:settings
 ```

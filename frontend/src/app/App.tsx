@@ -6,22 +6,64 @@ import type { AppGateway, CharacterDayResult, DashboardLayoutResult, DashboardMo
 import { CharacterDayDialog } from "./CharacterDayDialog";
 import { DashboardModuleHost } from "./DashboardModules";
 import { EditRegistrationDialog, type RegistrationDraft } from "./EditRegistrationDialog";
+import { HistoryPage } from "./HistoryPage";
 import { ManagementPage } from "./ManagementPage";
+import { PveBagPriceDialog } from "./PveBagPriceDialog";
 import { SettingsPage } from "./SettingsPage";
 import { TowerDialog } from "./TowerDialog";
 
 type BridgeState = "connecting" | "ready" | "error";
-type Page = "today" | "management" | "settings";
+type Page = "today" | "management" | "history" | "settings";
 const numberFormat = new Intl.NumberFormat("pt-BR");
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 const defaultLayout: DashboardLayoutResult = { schemaVersion: 1, visibility: { "daily-summary": true, "recent-drops": true, "monthly-performance": true } };
 
-function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`panel ${className}`}>{children}</section>;
+function Panel({ children, className = "", ...props }: React.HTMLAttributes<HTMLElement>) {
+  return <section className={`panel ${className}`} {...props}>{children}</section>;
 }
 
-function StatCard({ icon, label, value, detail, tone }: { icon: React.ReactNode; label: string; value: string; detail: string; tone: "blue" | "violet" | "teal" | "gold" }) {
-  return <Panel className="stat-card"><div className={`stat-icon stat-icon--${tone}`}>{icon}</div><div><p className="eyebrow">{label}</p><strong className="stat-value">{value}</strong><p className="stat-detail">{detail}</p></div></Panel>;
+function StatCard({
+  icon,
+  label,
+  value,
+  detail,
+  tone,
+  hoverLabel,
+  hoverValue,
+  hoverDetail,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  detail: string;
+  tone: "blue" | "violet" | "teal" | "gold";
+  hoverLabel?: string;
+  hoverValue?: string;
+  hoverDetail?: string;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const isInteractive = Boolean(hoverValue && hoverValue !== value);
+  const displayLabel = hovered && hoverLabel ? hoverLabel : label;
+  const displayValue = hovered && hoverValue ? hoverValue : value;
+  const displayDetail = hovered && hoverDetail ? hoverDetail : detail;
+
+  return (
+    <Panel
+      className={`stat-card ${isInteractive ? "stat-card--interactive" : ""}`}
+      onMouseEnter={isInteractive ? () => setHovered(true) : undefined}
+      onMouseLeave={isInteractive ? () => setHovered(false) : undefined}
+      onFocus={isInteractive ? () => setHovered(true) : undefined}
+      onBlur={isInteractive ? () => setHovered(false) : undefined}
+      tabIndex={isInteractive ? 0 : undefined}
+    >
+      <div className={`stat-icon stat-icon--${tone}`}>{icon}</div>
+      <div>
+        <p className="eyebrow">{displayLabel}</p>
+        <strong className="stat-value">{displayValue}</strong>
+        <p className="stat-detail">{displayDetail}</p>
+      </div>
+    </Panel>
+  );
 }
 
 export function App({ gateway }: { gateway: AppGateway }) {
@@ -44,6 +86,9 @@ export function App({ gateway }: { gateway: AppGateway }) {
   const [towerOpen, setTowerOpen] = useState(false);
   const [towerSaving, setTowerSaving] = useState(false);
   const [towerError, setTowerError] = useState<string | null>(null);
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [priceSaving, setPriceSaving] = useState(false);
+  const [priceError, setPriceError] = useState<string | null>(null);
   const [layout, setLayout] = useState<DashboardLayoutResult>(defaultLayout);
   const [layoutBusy, setLayoutBusy] = useState(false);
   const [layoutError, setLayoutError] = useState<string | null>(null);
@@ -58,12 +103,12 @@ export function App({ gateway }: { gateway: AppGateway }) {
     setActivity(nextActivity);
   }, [gateway]);
 
-  const loadManagement = useCallback(async () => {
-    setManagementLoading(true);
+  const loadManagement = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setManagementLoading(true);
     setManagementError(null);
     try { setManagement(await gateway.getManagementOverview()); }
     catch (error: unknown) { setManagementError(error instanceof Error ? error.message : "Falha ao carregar cadastros"); }
-    finally { setManagementLoading(false); }
+    finally { if (!options?.silent) setManagementLoading(false); }
   }, [gateway]);
 
   useEffect(() => {
@@ -99,7 +144,7 @@ export function App({ gateway }: { gateway: AppGateway }) {
 
   async function createAccount(name: string, serverName: string) {
     setManagementBusy(true); setManagementError(null);
-    try { await gateway.createAccount(name, serverName); await loadManagement(); }
+    try { await gateway.createAccount(name, serverName); await loadManagement({ silent: true }); }
     catch (error: unknown) { setManagementError(error instanceof Error ? error.message : "Não foi possível cadastrar a conta"); }
     finally { setManagementBusy(false); }
   }
@@ -109,16 +154,21 @@ export function App({ gateway }: { gateway: AppGateway }) {
     if (bridgeState === "ready") void loadManagement();
   }
 
+  function openHistory() {
+    setPage("history");
+    if (bridgeState === "ready" && !management) void loadManagement({ silent: true });
+  }
+
   async function createCharacter(accountId: string, name: string, className: string, level: number) {
     setManagementBusy(true); setManagementError(null);
-    try { await gateway.createCharacter(accountId, name, className, level); await Promise.all([loadManagement(), loadDashboard()]); }
+    try { await gateway.createCharacter(accountId, name, className, level); await Promise.all([loadManagement({ silent: true }), loadDashboard()]); }
     catch (error: unknown) { setManagementError(error instanceof Error ? error.message : "Não foi possível cadastrar o personagem"); }
     finally { setManagementBusy(false); }
   }
 
   async function toggleDungeon(activityId: string, enabled: boolean) {
     setManagementBusy(true); setManagementError(null);
-    try { await gateway.setDungeonActive(activityId, enabled); await Promise.all([loadManagement(), loadDashboard()]); }
+    try { await gateway.setDungeonActive(activityId, enabled); await Promise.all([loadManagement({ silent: true }), loadDashboard()]); }
     catch (error: unknown) { setManagementError(error instanceof Error ? error.message : "Não foi possível alterar a rotina"); }
     finally { setManagementBusy(false); }
   }
@@ -129,7 +179,7 @@ export function App({ gateway }: { gateway: AppGateway }) {
       if (draft.kind === "account") await gateway.updateAccount(draft.id, draft.name, draft.serverName);
       else await gateway.updateCharacter(draft.id, draft.name, draft.className, draft.level);
       setEditingRegistration(null);
-      await Promise.all([loadManagement(), loadDashboard()]);
+      await Promise.all([loadManagement({ silent: true }), loadDashboard()]);
     } catch (error: unknown) { setManagementError(error instanceof Error ? error.message : "Não foi possível salvar as alterações"); }
     finally { setManagementBusy(false); }
   }
@@ -154,6 +204,19 @@ export function App({ gateway }: { gateway: AppGateway }) {
     try { await gateway.registerCompletedTower(input); setTowerOpen(false); await loadDashboard(); }
     catch (error: unknown) { setTowerError(error instanceof Error ? error.message : "Não foi possível registrar a Torre"); }
     finally { setTowerSaving(false); }
+  }
+
+  async function savePveBagPrice(unitValueGold: number) {
+    setPriceSaving(true); setPriceError(null);
+    try {
+      await gateway.recordPveBagQuote(unitValueGold);
+      setPriceModalOpen(false);
+      await loadDashboard();
+    } catch (error: unknown) {
+      setPriceError(error instanceof Error ? error.message : "Não foi possível salvar a cotação");
+    } finally {
+      setPriceSaving(false);
+    }
   }
 
   async function setModuleVisible(moduleKey: DashboardModuleKey, enabled: boolean) {
@@ -185,6 +248,10 @@ export function App({ gateway }: { gateway: AppGateway }) {
   const titleDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
   const gold = today?.state === "ready" ? today.estimatedGold : 0;
   const bags = today?.state === "ready" ? today.estimatedPveBags : 0;
+  const bagsMarketValue = today?.state === "ready"
+    ? (today.estimatedPveBagMarketValue ?? (today.pveBagUnitValueGold ? bags * today.pveBagUnitValueGold : 0))
+    : 0;
+  const goldWithBags = gold + bagsMarketValue;
   const runsCompleted = activity?.runsCompleted ?? 0;
   const towerCompleted = activity?.towerCompleted ?? 0;
   const towerTotal = activity?.towerTotal ?? 0;
@@ -201,7 +268,7 @@ export function App({ gateway }: { gateway: AppGateway }) {
         <button className={page === "today" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={() => setPage("today")}><House size={22} weight="duotone" />Hoje</button>
         <button className={page === "management" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={openManagement}><UsersThree size={22} weight="duotone" />Personagens</button>
         <button className="nav-item" type="button" disabled><ChartBar size={22} weight="duotone" />Relatórios</button>
-        <button className="nav-item" type="button" disabled><CalendarBlank size={22} weight="duotone" />Histórico</button>
+        <button className={page === "history" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={openHistory}><CalendarBlank size={22} weight="duotone" />Histórico</button>
         <button className={page === "settings" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={() => setPage("settings")}><GearSix size={22} weight="duotone" />Configurações</button>
       </nav>
       <Panel className="account-card"><div className="account-avatar">GF</div><div><strong>Workspace local</strong><span>Dados no SQLite</span></div><small data-testid="bridge-status"><i />{bridgeState === "ready" ? "Online" : bridgeState === "error" ? "Offline" : "Conectando"}</small></Panel>
@@ -211,15 +278,52 @@ export function App({ gateway }: { gateway: AppGateway }) {
       <header className="topbar"><div className="date-block"><CalendarBlank size={25} weight="duotone" /><div><strong>{titleDate}</strong><span>Farm diário</span></div></div><div className="top-actions"><button aria-label="Tema"><Moon size={23} /></button><button aria-label="Relatórios"><ChartBar size={23} /></button><button aria-label="Notificações"><Bell size={23} /></button><div className="profile-dot">GF</div></div></header>
       <div className="dashboard" id="today">
         {page === "today" ? <>
-        <div className="page-title-row"><h1>Farm de Hoje</h1><button className="secondary-button tower-action" type="button" disabled={today?.state !== "ready"} onClick={() => { setTowerError(null); setTowerOpen(true); }}><ShieldChevron size={18} weight="duotone" />Registrar Torre</button></div>
+        <div className="page-title-row">
+          <h1>Farm de Hoje</h1>
+          <div className="page-title-actions">
+            <button
+              className="secondary-button price-action"
+              type="button"
+              disabled={today?.state !== "ready"}
+              onClick={() => {
+                setPriceError(null);
+                setPriceModalOpen(true);
+              }}
+            >
+              <Coins size={18} weight="duotone" />
+              Preço Saco PvE
+            </button>
+            <button
+              className="secondary-button tower-action"
+              type="button"
+              disabled={today?.state !== "ready"}
+              onClick={() => {
+                setTowerError(null);
+                setTowerOpen(true);
+              }}
+            >
+              <ShieldChevron size={18} weight="duotone" />
+              Registrar Torre
+            </button>
+          </div>
+        </div>
         {todayError && <div className="error-banner" role="alert">{todayError}</div>}
         {today?.state === "empty" && <Panel className="onboarding"><div><strong>Configure seu espaço de farm</strong><span>O catálogo das nove dungeons será criado automaticamente.</span></div><input aria-label="Nome do workspace" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} /><button disabled={creatingWorkspace || !workspaceName.trim()} onClick={() => void createWorkspace()}>{creatingWorkspace ? "Criando..." : "Começar"}</button></Panel>}
 
         <div className="stats-grid" data-testid="today-cards">
-          <StatCard icon={<UsersThree size={29} weight="duotone" />} label="Personagens concluídos" value={`${totals.completedCharacters} / ${characterRows.length}`} detail={characterRows.length ? `${Math.round((totals.completedCharacters / characterRows.length) * 100)}% do total` : "Nenhum personagem"} tone="blue" />
-          <StatCard icon={<Sword size={29} weight="duotone" />} label="Runs totais" value={`${runsCompleted} / ${totals.selected * 5}`} detail="Progresso diário" tone="violet" />
-          <StatCard icon={<ShieldChevron size={29} weight="duotone" />} label="Torre concluída" value={`${towerCompleted} / ${towerTotal}`} detail={towerTotal ? "Sessões de hoje" : "Sem sessões hoje"} tone="teal" />
-          <StatCard icon={<Coins size={29} weight="duotone" />} label="Ouro estimado hoje" value={numberFormat.format(gold)} detail={bags ? `+ ${numberFormat.format(bags)} Sacos PvE` : "Recompensas das dungeons"} tone="gold" />
+          <StatCard icon={<UsersThree size={22} weight="duotone" />} label="Personagens concluídos" value={`${totals.completedCharacters} / ${characterRows.length}`} detail={characterRows.length ? `${Math.round((totals.completedCharacters / characterRows.length) * 100)}% do total` : "Nenhum personagem"} tone="blue" />
+          <StatCard icon={<Sword size={22} weight="duotone" />} label="Runs totais" value={`${runsCompleted} / ${totals.selected * 5}`} detail="Progresso diário" tone="violet" />
+          <StatCard icon={<ShieldChevron size={22} weight="duotone" />} label="Torre concluída" value={`${towerCompleted} / ${towerTotal}`} detail={towerTotal ? "Sessões de hoje" : "Sem sessões hoje"} tone="teal" />
+          <StatCard
+            icon={<Coins size={22} weight="duotone" />}
+            label="Ouro estimado hoje"
+            value={numberFormat.format(gold)}
+            detail={bags ? `+ ${numberFormat.format(bags)} Sacos PvE` : "Recompensas das dungeons"}
+            hoverLabel="Ouro estimado c/ venda de sacos"
+            hoverValue={bagsMarketValue > 0 ? numberFormat.format(goldWithBags) : undefined}
+            hoverDetail={bagsMarketValue > 0 ? `${numberFormat.format(bags)} sacos (~${numberFormat.format(bagsMarketValue)}g)` : undefined}
+            tone="gold"
+          />
         </div>
 
         <div className="content-grid">
@@ -235,10 +339,11 @@ export function App({ gateway }: { gateway: AppGateway }) {
           <DashboardModuleHost visibility={layout.visibility} activity={activity} runsCompleted={runsCompleted} completedCharacters={totals.completedCharacters} characterTotal={characterRows.length} towerCompleted={towerCompleted} towerTotal={towerTotal} gold={gold} monthlyData={monthlyData} />
         </div>
         <footer className="dashboard-footer"><Sparkle size={16} weight="duotone" />Dados atualizados pelo banco local.</footer>
-        </> : page === "management" ? <ManagementPage overview={management} loading={managementLoading} busy={managementBusy} error={managementError} onCreateAccount={createAccount} onCreateCharacter={createCharacter} onEdit={setEditingRegistration} onToggleDungeon={toggleDungeon} /> : <SettingsPage layout={layout} busy={layoutBusy} error={layoutError} onToggle={setModuleVisible} onReset={resetLayout} />}
+        </> : page === "management" ? <ManagementPage overview={management} loading={managementLoading} busy={managementBusy} error={managementError} onCreateAccount={createAccount} onCreateCharacter={createCharacter} onEdit={setEditingRegistration} onToggleDungeon={toggleDungeon} /> : page === "history" ? <HistoryPage gateway={gateway} management={management} /> : <SettingsPage layout={layout} busy={layoutBusy} error={layoutError} onToggle={setModuleVisible} onReset={resetLayout} />}
       </div>
       {characterDay && <CharacterDayDialog day={characterDay} saving={daySaving} error={dayError} onClose={() => setCharacterDay(null)} onSave={saveCharacterDay} />}
       {towerOpen && <TowerDialog characters={characterRows} saving={towerSaving} error={towerError} onClose={() => setTowerOpen(false)} onSave={registerTower} />}
+      {priceModalOpen && <PveBagPriceDialog currentPrice={today?.state === "ready" ? (today.pveBagUnitValueGold ?? null) : null} saving={priceSaving} error={priceError} onClose={() => setPriceModalOpen(false)} onSave={savePveBagPrice} />}
       {editingRegistration && <EditRegistrationDialog draft={editingRegistration} saving={managementBusy} error={managementError} onClose={() => setEditingRegistration(null)} onSave={saveRegistrationEdit} />}
     </div>
   </main>;

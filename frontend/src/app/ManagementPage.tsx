@@ -39,7 +39,7 @@ export function ManagementPage({ overview, loading, busy, error, onCreateAccount
     setClassName("");
   }
 
-  if (loading) return <div className="page-state"><UsersThree size={32} weight="duotone" /><strong>Carregando cadastros...</strong></div>;
+  if (loading && !overview) return <div className="page-state"><UsersThree size={32} weight="duotone" /><strong>Carregando cadastros...</strong></div>;
   if (!overview || overview.state === "empty") return <div className="page-state"><Buildings size={32} weight="duotone" /><strong>Crie o workspace local antes de cadastrar contas.</strong></div>;
 
   return <div className="management-page">

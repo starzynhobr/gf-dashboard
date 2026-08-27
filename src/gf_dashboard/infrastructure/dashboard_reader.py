@@ -6,6 +6,11 @@ from uuid import UUID
 from gf_dashboard.application.read_models import (
     CharacterDay,
     CharacterDayDungeon,
+    HistoryCharacterDetail,
+    HistoryDayDetail,
+    HistoryDaySummary,
+    HistoryDungeonEntry,
+    HistoryTowerSession,
     ManagementAccount,
     ManagementCharacter,
     ManagementOverview,
@@ -77,6 +82,7 @@ class SqliteDashboardReader:
                 (str(workspace_id),),
             ).fetchone()
             bags = int(totals["bags"])
+            unit_val = Gold(int(quote["unit_value_gold"])) if quote else None
             bag_value = Gold(int(quote["unit_value_gold"]) * bags) if quote else None
             return TodayEstimate(
                 activity_date,
@@ -84,6 +90,7 @@ class SqliteDashboardReader:
                 Gold(int(totals["gold"])),
                 bags,
                 bag_value,
+                unit_val,
             )
         finally:
             connection.close()
@@ -412,6 +419,361 @@ class SqliteDashboardReader:
                 ),
                 monthly_gold=monthly_gold,
                 monthly_gold_total=Gold(sum(point.gold.amount for point in monthly_gold)),
+            )
+        finally:
+            connection.close()
+
+    def history_overview_for_default_workspace(
+        self,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        account_id: str | None = None,
+        character_id: str | None = None,
+    ) -> tuple[HistoryDaySummary, ...] | None:
+        connection = self._database.connect(read_only=True)
+        try:
+            workspace = connection.execute(
+                "SELECT id FROM workspaces WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1"
+            ).fetchone()
+            if workspace is None:
+                return None
+            workspace_id = workspace["id"]
+
+            date_filter_clauses = []
+            params: list[str] = [workspace_id]
+            if start_date:
+                date_filter_clauses.append("activity_date >= ?")
+                params.append(start_date.isoformat())
+            if end_date:
+                date_filter_clauses.append("activity_date <= ?")
+                params.append(end_date.isoformat())
+
+            date_where = f" AND {' AND '.join(date_filter_clauses)}" if date_filter_clauses else ""
+
+            date_rows = connection.execute(
+                f"""
+                SELECT DISTINCT activity_date FROM (
+                    SELECT dae.activity_date
+                    FROM daily_activity_entries dae
+                    JOIN character_activities ca ON ca.id = dae.character_activity_id
+                    JOIN characters c ON c.id = ca.character_id
+                    WHERE dae.workspace_id = ? AND dae.deleted_at IS NULL
+                      AND (dae.status = 'completed' OR dae.progress_amount > 0)
+                      {date_where.replace("activity_date", "dae.activity_date")}
+                      {f"AND c.account_id = '{account_id}'" if account_id else ""}
+                      {f"AND c.id = '{character_id}'" if character_id else ""}
+                    UNION
+                    SELECT fs.activity_date
+                    FROM farm_sessions fs
+                    LEFT JOIN farm_session_participants fsp ON fsp.farm_session_id = fs.id
+                    LEFT JOIN characters c
+                      ON c.id = fsp.character_id OR c.id = fs.primary_character_id
+                    WHERE fs.workspace_id = ? AND fs.deleted_at IS NULL
+                      {date_where.replace("activity_date", "fs.activity_date")}
+                      {f"AND c.account_id = '{account_id}'" if account_id else ""}
+                      {f"AND c.id = '{character_id}'" if character_id else ""}
+                )
+                ORDER BY activity_date DESC
+                """,
+                (workspace_id, *params[1:], workspace_id, *params[1:])
+                if date_filter_clauses
+                else (workspace_id, workspace_id),
+            ).fetchall()
+
+            summaries: list[HistoryDaySummary] = []
+            for d_row in date_rows:
+                act_date_str = d_row["activity_date"]
+                act_date = date.fromisoformat(act_date_str)
+
+                runs_query = connection.execute(
+                    """
+                    SELECT COUNT(ac.id) AS runs,
+                           COALESCE(SUM(ac.gold_reward_snapshot), 0) AS gold,
+                           COALESCE(SUM(ac.pve_bags_snapshot), 0) AS bags
+                    FROM activity_completions ac
+                    JOIN daily_activity_entries dae
+                      ON dae.id = ac.daily_activity_entry_id AND dae.deleted_at IS NULL
+                    JOIN character_activities ca
+                      ON ca.id = dae.character_activity_id AND ca.deleted_at IS NULL
+                    JOIN characters c ON c.id = ca.character_id AND c.deleted_at IS NULL
+                    WHERE ac.workspace_id = ? AND dae.activity_date = ? AND ac.deleted_at IS NULL
+                    """
+                    + (f" AND c.account_id = '{account_id}'" if account_id else "")
+                    + (f" AND c.id = '{character_id}'" if character_id else ""),
+                    (workspace_id, act_date_str),
+                ).fetchone()
+
+                runs = int(runs_query["runs"]) if runs_query else 0
+                dungeon_gold = int(runs_query["gold"]) if runs_query else 0
+                dungeon_bags = int(runs_query["bags"]) if runs_query else 0
+
+                char_rows = connection.execute(
+                    """
+                    SELECT c.id,
+                           COUNT(ca.id) AS selected,
+                           COALESCE(
+                             SUM(CASE WHEN dae.status = 'completed' THEN 1 ELSE 0 END), 0
+                           ) AS completed
+                    FROM characters c
+                    JOIN accounts acc ON acc.id = c.account_id AND acc.deleted_at IS NULL
+                    JOIN character_activities ca
+                      ON ca.character_id = c.id AND ca.is_active = 1 AND ca.deleted_at IS NULL
+                    LEFT JOIN daily_activity_entries dae ON dae.character_activity_id = ca.id
+                        AND dae.activity_date = ? AND dae.deleted_at IS NULL
+                    WHERE c.workspace_id = ? AND c.is_active = 1 AND c.deleted_at IS NULL
+                    """
+                    + (f" AND c.account_id = '{account_id}'" if account_id else "")
+                    + (f" AND c.id = '{character_id}'" if character_id else "")
+                    + " GROUP BY c.id",
+                    (act_date_str, workspace_id),
+                ).fetchall()
+                total_chars = len(char_rows)
+                completed_chars = sum(
+                    1
+                    for r in char_rows
+                    if int(r["completed"]) > 0 and int(r["completed"]) >= int(r["selected"])
+                )
+
+                tower_query = connection.execute(
+                    """
+                    SELECT COUNT(fs.id) AS total,
+                           COALESCE(
+                             SUM(CASE WHEN tsd.completed = 1 THEN 1 ELSE 0 END), 0
+                           ) AS completed,
+                           COALESCE(SUM(fs.gold_earned), 0) AS tower_gold,
+                           COALESCE(SUM(fs.pve_bags_earned), 0) AS tower_bags
+                    FROM farm_sessions fs
+                    JOIN tower_session_details tsd
+                      ON tsd.farm_session_id = fs.id AND tsd.deleted_at IS NULL
+                    LEFT JOIN farm_session_participants fsp
+                      ON fsp.farm_session_id = fs.id AND fsp.deleted_at IS NULL
+                    LEFT JOIN characters c ON c.id = fsp.character_id
+                    WHERE fs.workspace_id = ? AND fs.activity_date = ? AND fs.deleted_at IS NULL
+                    """
+                    + (f" AND c.account_id = '{account_id}'" if account_id else "")
+                    + (f" AND c.id = '{character_id}'" if character_id else ""),
+                    (workspace_id, act_date_str),
+                ).fetchone()
+
+                tower_total = int(tower_query["total"]) if tower_query else 0
+                tower_completed = int(tower_query["completed"]) if tower_query else 0
+                tower_gold = int(tower_query["tower_gold"]) if tower_query else 0
+                tower_bags = int(tower_query["tower_bags"]) if tower_query else 0
+
+                drops_query = connection.execute(
+                    """
+                    SELECT COALESCE(SUM(fsi.quantity), 0) AS total_drops
+                    FROM farm_session_items fsi
+                    JOIN farm_sessions fs ON fs.id = fsi.farm_session_id AND fs.deleted_at IS NULL
+                    LEFT JOIN farm_session_participants fsp ON fsp.farm_session_id = fs.id
+                    LEFT JOIN characters c ON c.id = fsp.character_id
+                    WHERE fsi.workspace_id = ? AND fs.activity_date = ? AND fsi.deleted_at IS NULL
+                    """
+                    + (f" AND c.account_id = '{account_id}'" if account_id else "")
+                    + (f" AND c.id = '{character_id}'" if character_id else ""),
+                    (workspace_id, act_date_str),
+                ).fetchone()
+                drops_count = int(drops_query["total_drops"]) if drops_query else 0
+
+                summaries.append(
+                    HistoryDaySummary(
+                        activity_date=act_date,
+                        runs_completed=runs,
+                        characters_completed=completed_chars,
+                        characters_total=total_chars,
+                        gold_earned=Gold(dungeon_gold + tower_gold),
+                        pve_bags_earned=dungeon_bags + tower_bags,
+                        tower_completed=tower_completed,
+                        tower_total=tower_total,
+                        drops_count=drops_count,
+                    )
+                )
+            return tuple(summaries)
+        finally:
+            connection.close()
+
+    def history_day_detail_for_default_workspace(
+        self,
+        activity_date: date,
+        account_id: str | None = None,
+        character_id: str | None = None,
+    ) -> HistoryDayDetail | None:
+        connection = self._database.connect(read_only=True)
+        try:
+            workspace = connection.execute(
+                "SELECT id FROM workspaces WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1"
+            ).fetchone()
+            if workspace is None:
+                return None
+            workspace_id = workspace["id"]
+            act_date_str = activity_date.isoformat()
+
+            runs_query = connection.execute(
+                """
+                SELECT COUNT(ac.id) AS runs,
+                       COALESCE(SUM(ac.gold_reward_snapshot), 0) AS gold,
+                       COALESCE(SUM(ac.pve_bags_snapshot), 0) AS bags
+                FROM activity_completions ac
+                JOIN daily_activity_entries dae
+                  ON dae.id = ac.daily_activity_entry_id AND dae.deleted_at IS NULL
+                JOIN character_activities ca
+                  ON ca.id = dae.character_activity_id AND ca.deleted_at IS NULL
+                JOIN characters c ON c.id = ca.character_id AND c.deleted_at IS NULL
+                WHERE ac.workspace_id = ? AND dae.activity_date = ? AND ac.deleted_at IS NULL
+                """
+                + (f" AND c.account_id = '{account_id}'" if account_id else "")
+                + (f" AND c.id = '{character_id}'" if character_id else ""),
+                (workspace_id, act_date_str),
+            ).fetchone()
+            runs = int(runs_query["runs"]) if runs_query else 0
+            gold = int(runs_query["gold"]) if runs_query else 0
+            bags = int(runs_query["bags"]) if runs_query else 0
+
+            char_rows = connection.execute(
+                """
+                SELECT c.id, c.name, c.class_name, acc.name AS account_name
+                FROM characters c
+                JOIN accounts acc ON acc.id = c.account_id AND acc.deleted_at IS NULL
+                WHERE c.workspace_id = ? AND c.is_active = 1 AND c.deleted_at IS NULL
+                """
+                + (f" AND c.account_id = '{account_id}'" if account_id else "")
+                + (f" AND c.id = '{character_id}'" if character_id else "")
+                + " ORDER BY c.sort_order, c.name",
+                (workspace_id,),
+            ).fetchall()
+
+            char_details: list[HistoryCharacterDetail] = []
+            for ch in char_rows:
+                c_id = ch["id"]
+                dung_rows = connection.execute(
+                    """
+                    SELECT a.id AS activity_id, a.name, ca.target_amount,
+                           CASE WHEN dae.status = 'completed' THEN 1 ELSE 0 END AS completed,
+                           COALESCE(SUM(ac.gold_reward_snapshot), 0) AS gold,
+                           COALESCE(SUM(ac.pve_bags_snapshot), 0) AS pve_bags
+                    FROM character_activities ca
+                    JOIN activities a
+                      ON a.id = ca.activity_id AND a.is_active = 1 AND a.deleted_at IS NULL
+                    LEFT JOIN daily_activity_entries dae ON dae.character_activity_id = ca.id
+                        AND dae.activity_date = ? AND dae.deleted_at IS NULL
+                    LEFT JOIN activity_completions ac ON ac.daily_activity_entry_id = dae.id
+                        AND ac.deleted_at IS NULL
+                    WHERE ca.workspace_id = ? AND ca.character_id = ?
+                      AND ca.is_active = 1 AND ca.deleted_at IS NULL
+                    GROUP BY a.id, a.name, ca.target_amount, dae.status
+                    ORDER BY ca.sort_order, a.name
+                    """,
+                    (act_date_str, workspace_id, c_id),
+                ).fetchall()
+
+                dungeons = tuple(
+                    HistoryDungeonEntry(
+                        activity_id=dr["activity_id"],
+                        name=dr["name"],
+                        completed=bool(dr["completed"]),
+                        target_amount=int(dr["target_amount"]),
+                        gold=Gold(int(dr["gold"])),
+                        pve_bags=int(dr["pve_bags"]),
+                    )
+                    for dr in dung_rows
+                )
+                completed_count = sum(1 for d in dungeons if d.completed)
+                char_details.append(
+                    HistoryCharacterDetail(
+                        character_id=c_id,
+                        name=ch["name"],
+                        class_name=ch["class_name"],
+                        account_name=ch["account_name"],
+                        completed_dungeons=completed_count,
+                        selected_dungeons=len(dungeons),
+                        dungeons=dungeons,
+                    )
+                )
+
+            tower_rows = connection.execute(
+                """
+                SELECT fs.id, tsd.completed, tsd.entry_cost_gold_snapshot
+                FROM farm_sessions fs
+                JOIN tower_session_details tsd
+                  ON tsd.farm_session_id = fs.id AND tsd.deleted_at IS NULL
+                WHERE fs.workspace_id = ? AND fs.activity_date = ? AND fs.deleted_at IS NULL
+                ORDER BY fs.started_at, fs.rowid
+                """,
+                (workspace_id, act_date_str),
+            ).fetchall()
+
+            tower_sessions: list[HistoryTowerSession] = []
+            for tr in tower_rows:
+                ts_id = tr["id"]
+                part_rows = connection.execute(
+                    """
+                    SELECT c.name FROM farm_session_participants fsp
+                    JOIN characters c ON c.id = fsp.character_id AND c.deleted_at IS NULL
+                    WHERE fsp.farm_session_id = ? AND fsp.deleted_at IS NULL
+                    ORDER BY fsp.joined_at, c.name
+                    """,
+                    (ts_id,),
+                ).fetchall()
+                part_names = tuple(pr["name"] for pr in part_rows)
+
+                t_drop_rows = connection.execute(
+                    """
+                    SELECT i.name, fsi.quantity, fsi.obtained_at
+                    FROM farm_session_items fsi
+                    JOIN items i ON i.id = fsi.item_id AND i.deleted_at IS NULL
+                    WHERE fsi.farm_session_id = ? AND fsi.deleted_at IS NULL
+                    ORDER BY fsi.obtained_at, fsi.rowid
+                    """,
+                    (ts_id,),
+                ).fetchall()
+                t_drops = tuple(
+                    RecentDrop(
+                        tdr["name"],
+                        int(tdr["quantity"]),
+                        datetime.fromisoformat(tdr["obtained_at"]),
+                    )
+                    for tdr in t_drop_rows
+                )
+
+                tower_sessions.append(
+                    HistoryTowerSession(
+                        session_id=ts_id,
+                        completed=bool(tr["completed"]),
+                        cost_gold=Gold(int(tr["entry_cost_gold_snapshot"])),
+                        participant_names=part_names,
+                        drops=t_drops,
+                    )
+                )
+
+            all_drops_rows = connection.execute(
+                """
+                SELECT i.name, fsi.quantity, fsi.obtained_at
+                FROM farm_session_items fsi
+                JOIN farm_sessions fs ON fs.id = fsi.farm_session_id AND fs.deleted_at IS NULL
+                JOIN items i ON i.id = fsi.item_id AND i.deleted_at IS NULL
+                WHERE fsi.workspace_id = ? AND fs.activity_date = ? AND fsi.deleted_at IS NULL
+                ORDER BY fsi.obtained_at DESC, fsi.rowid DESC
+                """,
+                (workspace_id, act_date_str),
+            ).fetchall()
+
+            all_drops = tuple(
+                RecentDrop(
+                    adr["name"],
+                    int(adr["quantity"]),
+                    datetime.fromisoformat(adr["obtained_at"]),
+                )
+                for adr in all_drops_rows
+            )
+
+            return HistoryDayDetail(
+                activity_date=activity_date,
+                runs_completed=runs,
+                gold_earned=Gold(gold),
+                pve_bags_earned=bags,
+                characters=tuple(char_details),
+                tower_sessions=tuple(tower_sessions),
+                drops=all_drops,
             )
         finally:
             connection.close()

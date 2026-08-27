@@ -8,6 +8,7 @@ from uuid import UUID
 from PySide6.QtCore import QObject, Slot
 
 from gf_dashboard.application.catalog import DungeonCatalogService
+from gf_dashboard.application.market_quotes import MarketQuoteService
 from gf_dashboard.application.ports import FarmUnitOfWork, TowerUnitOfWork
 from gf_dashboard.application.services import (
     ActivityCompletionService,
@@ -72,6 +73,9 @@ class AppBridge(QObject):
                             today.estimated_pve_bag_market_value.amount
                             if today.estimated_pve_bag_market_value
                             else None
+                        ),
+                        "pveBagUnitValueGold": (
+                            today.pve_bag_unit_value.amount if today.pve_bag_unit_value else None
                         ),
                     },
                 )
@@ -383,6 +387,165 @@ class AppBridge(QObject):
                     SystemClock(),
                 ).reset(self._default_workspace_id())
                 return self._success(request_id, {"visibility": visibility, "schemaVersion": 1})
+            if method == "history.overview":
+                if self._dashboard_reader is None:
+                    return self._error(
+                        request_id, "service_unavailable", "Histórico local indisponível"
+                    )
+                start_date_str = payload.get("startDate")
+                end_date_str = payload.get("endDate")
+                start_date = (
+                    date.fromisoformat(start_date_str)
+                    if isinstance(start_date_str, str) and start_date_str.strip()
+                    else None
+                )
+                end_date = (
+                    date.fromisoformat(end_date_str)
+                    if isinstance(end_date_str, str) and end_date_str.strip()
+                    else None
+                )
+                account_id = (
+                    payload.get("accountId")
+                    if isinstance(payload.get("accountId"), str) and payload["accountId"].strip()
+                    else None
+                )
+                character_id = (
+                    payload.get("characterId")
+                    if isinstance(payload.get("characterId"), str)
+                    and payload["characterId"].strip()
+                    else None
+                )
+                days = self._dashboard_reader.history_overview_for_default_workspace(
+                    start_date=start_date,
+                    end_date=end_date,
+                    account_id=account_id,
+                    character_id=character_id,
+                )
+                if days is None:
+                    return self._success(request_id, {"state": "empty", "days": []})
+                return self._success(
+                    request_id,
+                    {
+                        "state": "ready",
+                        "days": [
+                            {
+                                "activityDate": day.activity_date.isoformat(),
+                                "runsCompleted": day.runs_completed,
+                                "charactersCompleted": day.characters_completed,
+                                "charactersTotal": day.characters_total,
+                                "goldEarned": day.gold_earned.amount,
+                                "pveBagsEarned": day.pve_bags_earned,
+                                "towerCompleted": day.tower_completed,
+                                "towerTotal": day.tower_total,
+                                "dropsCount": day.drops_count,
+                            }
+                            for day in days
+                        ],
+                    },
+                )
+            if method == "history.dayDetail":
+                if self._dashboard_reader is None:
+                    return self._error(
+                        request_id, "service_unavailable", "Histórico local indisponível"
+                    )
+                activity_date = self._activity_date(payload)
+                account_id = (
+                    payload.get("accountId")
+                    if isinstance(payload.get("accountId"), str) and payload["accountId"].strip()
+                    else None
+                )
+                character_id = (
+                    payload.get("characterId")
+                    if isinstance(payload.get("characterId"), str)
+                    and payload["characterId"].strip()
+                    else None
+                )
+                detail = self._dashboard_reader.history_day_detail_for_default_workspace(
+                    activity_date,
+                    account_id=account_id,
+                    character_id=character_id,
+                )
+                if detail is None:
+                    return self._error(request_id, "not_found", "Detalhes do dia não encontrados")
+                return self._success(
+                    request_id,
+                    {
+                        "state": "ready",
+                        "activityDate": detail.activity_date.isoformat(),
+                        "runsCompleted": detail.runs_completed,
+                        "goldEarned": detail.gold_earned.amount,
+                        "pveBagsEarned": detail.pve_bags_earned,
+                        "characters": [
+                            {
+                                "id": ch.character_id,
+                                "name": ch.name,
+                                "className": ch.class_name,
+                                "accountName": ch.account_name,
+                                "completedDungeons": ch.completed_dungeons,
+                                "selectedDungeons": ch.selected_dungeons,
+                                "dungeons": [
+                                    {
+                                        "activityId": d.activity_id,
+                                        "name": d.name,
+                                        "completed": d.completed,
+                                        "targetAmount": d.target_amount,
+                                        "gold": d.gold.amount,
+                                        "pveBags": d.pve_bags,
+                                    }
+                                    for d in ch.dungeons
+                                ],
+                            }
+                            for ch in detail.characters
+                        ],
+                        "towerSessions": [
+                            {
+                                "sessionId": ts.session_id,
+                                "completed": ts.completed,
+                                "costGold": ts.cost_gold.amount,
+                                "participantNames": list(ts.participant_names),
+                                "drops": [
+                                    {
+                                        "itemName": drop.item_name,
+                                        "quantity": drop.quantity,
+                                        "obtainedAt": drop.obtained_at.isoformat(),
+                                    }
+                                    for drop in ts.drops
+                                ],
+                            }
+                            for ts in detail.tower_sessions
+                        ],
+                        "drops": [
+                            {
+                                "itemName": drop.item_name,
+                                "quantity": drop.quantity,
+                                "obtainedAt": drop.obtained_at.isoformat(),
+                            }
+                            for drop in detail.drops
+                        ],
+                    },
+                )
+            if method == "market.recordPveBagQuote":
+                unit_value_gold = self._required_int(payload, "unitValueGold", minimum=0)
+                source = payload.get("source")
+                if source is not None and not isinstance(source, str):
+                    raise ValueError("source must be a string")
+                quote = MarketQuoteService(
+                    cast(FarmUnitOfWork, SqliteUnitOfWork(self._required_database())),
+                    UUIDGenerator(),
+                    SystemClock(),
+                ).record_pve_bag_quote(
+                    self._default_workspace_id(),
+                    Gold(unit_value_gold),
+                    source=source.strip() or None if source else None,
+                )
+                return self._success(
+                    request_id,
+                    {
+                        "quoteId": str(quote.id),
+                        "unitValueGold": quote.unit_value_gold.amount,
+                        "observedAt": quote.observed_at.isoformat(),
+                    },
+                )
             if method == "workspace.create":
                 if self._database is None or self._dashboard_reader is None:
                     return self._error(

@@ -415,7 +415,154 @@ def test_tower_is_separate_session_with_fixed_single_cost_and_idempotent_complet
     overview = SqliteDashboardReader(database).today_activity_for_default_workspace(
         date(2026, 8, 26)
     )
-    assert overview is not None
     assert overview.tower_completed == 1
     assert overview.tower_total == 1
     assert [(item.item_name, item.quantity) for item in overview.recent_drops] == [("Drop raro", 2)]
+
+
+@pytest.mark.integration
+def test_history_overview_and_day_detail_query_and_bridge(tmp_path: Path) -> None:
+    database = SqliteDatabase(tmp_path / "farm.sqlite3", test_temporary_root=tmp_path)
+    MigrationRunner(database, load_migrations(), app_version="0.1.0-test").migrate()
+    _, ids, clock = create_memory_context()
+    uow = SqliteUnitOfWork(database)
+    workspace_service = WorkspaceService(uow, ids, clock)
+    completion_service = ActivityCompletionService(uow, ids, clock)
+    workspace = workspace_service.create_workspace("Pessoal")
+    account = workspace_service.create_account(workspace.id, "Conta Principal", "Valhalla")
+    character = workspace_service.create_character(
+        workspace.id, account.id, "Star01", "Ranger", 91, 1
+    )
+    activity = create_dungeon(activity_id=ids.new(), workspace_id=workspace.id)
+    with uow:
+        uow.activities.save(activity)
+        uow.rules.save(
+            confirmed_dungeon_rule(
+                rule_id=ids.new(), workspace_id=workspace.id, activity_id=activity.id
+            )
+        )
+    character_activity = workspace_service.configure_character_activity(
+        workspace.id, character.id, activity.id, 5, 1
+    )
+    completion_service.complete_activity(workspace.id, character_activity.id, date(2026, 8, 25))
+    completion_service.complete_activity(workspace.id, character_activity.id, date(2026, 8, 26))
+
+    bridge = AppBridge(database)
+    overview_res = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "req-hist-1",
+                    "method": "history.overview",
+                    "payload": {},
+                }
+            )
+        )
+    )
+    assert overview_res["ok"] is True
+    days = overview_res["data"]["days"]
+    assert len(days) == 2
+    assert days[0]["activityDate"] == "2026-08-26"
+    assert days[0]["runsCompleted"] == 5
+    assert days[0]["goldEarned"] == 7000
+    assert days[1]["activityDate"] == "2026-08-25"
+
+    detail_res = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "req-hist-2",
+                    "method": "history.dayDetail",
+                    "payload": {"activityDate": "2026-08-26"},
+                }
+            )
+        )
+    )
+    assert detail_res["ok"] is True
+    detail = detail_res["data"]
+    assert detail["activityDate"] == "2026-08-26"
+    assert detail["runsCompleted"] == 5
+    assert detail["goldEarned"] == 7000
+    assert len(detail["characters"]) == 1
+    assert detail["characters"][0]["name"] == "Star01"
+    assert detail["characters"][0]["completedDungeons"] == 1
+    assert detail["characters"][0]["dungeons"][0]["completed"] is True
+
+
+@pytest.mark.integration
+def test_pve_bag_quote_recording_and_dashboard_today_update(tmp_path: Path) -> None:
+    database = SqliteDatabase(tmp_path / "farm.sqlite3", test_temporary_root=tmp_path)
+    MigrationRunner(database, load_migrations(), app_version="0.1.0-test").migrate()
+    _, ids, clock = create_memory_context()
+    uow = SqliteUnitOfWork(database)
+    workspace = WorkspaceService(uow, ids, clock).create_workspace("Pessoal")
+    DungeonCatalogService(uow, ids, clock).seed_confirmed_dungeons(workspace.id)
+
+    bridge = AppBridge(database)
+    acc_res = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "acc-1",
+                    "method": "management.createAccount",
+                    "payload": {"name": "Conta Principal", "serverName": "Valhalla"},
+                }
+            )
+        )
+    )
+    assert acc_res["ok"] is True
+    char_res = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "char-1",
+                    "method": "management.createCharacter",
+                    "payload": {
+                        "accountId": acc_res["data"]["id"],
+                        "name": "Star01",
+                        "className": "Ranger",
+                        "level": 91,
+                    },
+                }
+            )
+        )
+    )
+    assert char_res["ok"] is True
+
+    # Record a PVE bag quote of 1,250 gold
+    quote_res = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "quote-1",
+                    "method": "market.recordPveBagQuote",
+                    "payload": {"unitValueGold": 1250, "source": "auction"},
+                }
+            )
+        )
+    )
+    assert quote_res["ok"] is True
+    assert quote_res["data"]["unitValueGold"] == 1250
+
+    # Query today to check market value calculation
+    today_res = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "today-1",
+                    "method": "dashboard.today",
+                    "payload": {"activityDate": "2026-08-26"},
+                }
+            )
+        )
+    )
+    assert today_res["ok"] is True
+    assert today_res["data"]["estimatedPveBags"] == 45
+    assert today_res["data"]["pveBagUnitValueGold"] == 1250
+    assert today_res["data"]["estimatedPveBagMarketValue"] == 45 * 1250

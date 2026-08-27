@@ -13,6 +13,7 @@ export type TodayResult =
       estimatedGold: number;
       estimatedPveBags: number;
       estimatedPveBagMarketValue: number | null;
+      pveBagUnitValueGold?: number | null;
     };
 
 export type TodayCharactersResult =
@@ -101,6 +102,69 @@ export interface DashboardLayoutResult {
   visibility: Record<DashboardModuleKey, boolean>;
 }
 
+export interface HistoryFilterInput {
+  startDate?: string;
+  endDate?: string;
+  accountId?: string;
+  characterId?: string;
+}
+
+export interface HistoryDaySummary {
+  activityDate: string;
+  runsCompleted: number;
+  charactersCompleted: number;
+  charactersTotal: number;
+  goldEarned: number;
+  pveBagsEarned: number;
+  towerCompleted: number;
+  towerTotal: number;
+  dropsCount: number;
+}
+
+export type HistoryOverviewResult =
+  | { state: "empty"; days: [] }
+  | { state: "ready"; days: HistoryDaySummary[] };
+
+export interface HistoryDayDetailResult {
+  state: "ready";
+  activityDate: string;
+  runsCompleted: number;
+  goldEarned: number;
+  pveBagsEarned: number;
+  characters: Array<{
+    id: string;
+    name: string;
+    className: string;
+    accountName: string;
+    completedDungeons: number;
+    selectedDungeons: number;
+    dungeons: Array<{
+      activityId: string;
+      name: string;
+      completed: boolean;
+      targetAmount: number;
+      gold: number;
+      pveBags: number;
+    }>;
+  }>;
+  towerSessions: Array<{
+    sessionId: string;
+    completed: boolean;
+    costGold: number;
+    participantNames: string[];
+    drops: Array<{
+      itemName: string;
+      quantity: number;
+      obtainedAt: string;
+    }>;
+  }>;
+  drops: Array<{
+    itemName: string;
+    quantity: number;
+    obtainedAt: string;
+  }>;
+}
+
 export interface AppGateway {
   ping(): Promise<PingResult>;
   getToday(): Promise<TodayResult>;
@@ -119,6 +183,9 @@ export interface AppGateway {
   setDashboardModuleVisible(moduleKey: DashboardModuleKey, enabled: boolean): Promise<DashboardLayoutResult>;
   resetDashboardLayout(): Promise<DashboardLayoutResult>;
   createWorkspace(name: string): Promise<{ name: string }>;
+  getHistoryOverview(filter?: HistoryFilterInput): Promise<HistoryOverviewResult>;
+  getHistoryDayDetail(activityDate: string, filter?: HistoryFilterInput): Promise<HistoryDayDetailResult>;
+  recordPveBagQuote(unitValueGold: number, source?: string): Promise<{ quoteId: string; unitValueGold: number; observedAt: string }>;
 }
 
 export class GatewayError extends Error {
