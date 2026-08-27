@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gf-dashboard-controller"
+version = "0.1.0"
+description = "Dashboard local para controle de farm em Grand Fantasia"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "PySide6==6.11.2",
+  "tzdata==2025.2",
+]
+
+[project.scripts]
+gf-dashboard = "gf_dashboard.bootstrap:main"
+
+[dependency-groups]
+dev = [
+  "mypy==1.18.2",
+  "pytest==8.4.2",
+  "pytest-cov==7.0.0",
+  "pytest-qt==4.5.0",
+  "ruff==0.13.2",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gf_dashboard"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["."]
+qt_api = "pyside6"
+markers = [
+  "integration: tests that cross process or framework boundaries",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/gf_dashboard/infrastructure/sqlite_repositories.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["gf_dashboard"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = "PySide6.*"
+ignore_missing_imports = true
