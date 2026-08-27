@@ -1,4 +1,4 @@
-import { Bell, CalendarBlank, ChartBar, Coins, GearSix, House, Moon, ShieldChevron, Sparkle, Sword, UserPlus, UsersThree } from "@phosphor-icons/react";
+import { Bell, CalendarBlank, ChartBar, Coins, GearSix, House, Moon, Plus, ShieldChevron, Sparkle, Sword, UserPlus, UsersThree } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import brandMark from "../assets/gf-farmer-mark.png";
@@ -9,11 +9,13 @@ import { EditRegistrationDialog, type RegistrationDraft } from "./EditRegistrati
 import { HistoryPage } from "./HistoryPage";
 import { ManagementPage } from "./ManagementPage";
 import { PveBagPriceDialog } from "./PveBagPriceDialog";
+import { ReportsPage } from "./ReportsPage";
+import { SaleDialog } from "./SaleDialog";
 import { SettingsPage } from "./SettingsPage";
 import { TowerDialog } from "./TowerDialog";
 
 type BridgeState = "connecting" | "ready" | "error";
-type Page = "today" | "management" | "history" | "settings";
+type Page = "today" | "management" | "reports" | "history" | "settings";
 const numberFormat = new Intl.NumberFormat("pt-BR");
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 const defaultLayout: DashboardLayoutResult = { schemaVersion: 1, visibility: { "daily-summary": true, "recent-drops": true, "monthly-performance": true } };
@@ -89,6 +91,7 @@ export function App({ gateway }: { gateway: AppGateway }) {
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [priceSaving, setPriceSaving] = useState(false);
   const [priceError, setPriceError] = useState<string | null>(null);
+  const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [layout, setLayout] = useState<DashboardLayoutResult>(defaultLayout);
   const [layoutBusy, setLayoutBusy] = useState(false);
   const [layoutError, setLayoutError] = useState<string | null>(null);
@@ -267,7 +270,7 @@ export function App({ gateway }: { gateway: AppGateway }) {
       <nav className="nav-list" aria-label="Principal">
         <button className={page === "today" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={() => setPage("today")}><House size={22} weight="duotone" />Hoje</button>
         <button className={page === "management" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={openManagement}><UsersThree size={22} weight="duotone" />Personagens</button>
-        <button className="nav-item" type="button" disabled><ChartBar size={22} weight="duotone" />Relatórios</button>
+        <button className={page === "reports" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={() => setPage("reports")}><ChartBar size={22} weight="duotone" />Relatórios</button>
         <button className={page === "history" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={openHistory}><CalendarBlank size={22} weight="duotone" />Histórico</button>
         <button className={page === "settings" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={() => setPage("settings")}><GearSix size={22} weight="duotone" />Configurações</button>
       </nav>
@@ -275,12 +278,21 @@ export function App({ gateway }: { gateway: AppGateway }) {
     </aside>
 
     <div className="workspace">
-      <header className="topbar"><div className="date-block"><CalendarBlank size={25} weight="duotone" /><div><strong>{titleDate}</strong><span>Farm diário</span></div></div><div className="top-actions"><button aria-label="Tema"><Moon size={23} /></button><button aria-label="Relatórios"><ChartBar size={23} /></button><button aria-label="Notificações"><Bell size={23} /></button><div className="profile-dot">GF</div></div></header>
+      <header className="topbar"><div className="date-block"><CalendarBlank size={25} weight="duotone" /><div><strong>{titleDate}</strong><span>Farm diário</span></div></div><div className="top-actions"><button aria-label="Tema"><Moon size={23} /></button><button aria-label="Relatórios" onClick={() => setPage("reports")}><ChartBar size={23} /></button><button aria-label="Notificações"><Bell size={23} /></button><div className="profile-dot">GF</div></div></header>
       <div className="dashboard" id="today">
         {page === "today" ? <>
         <div className="page-title-row">
           <h1>Farm de Hoje</h1>
           <div className="page-title-actions">
+            <button
+              className="primary-button sale-action"
+              type="button"
+              disabled={today?.state !== "ready"}
+              onClick={() => setSaleModalOpen(true)}
+            >
+              <Plus size={18} weight="bold" />
+              Nova Venda
+            </button>
             <button
               className="secondary-button price-action"
               type="button"
@@ -339,11 +351,12 @@ export function App({ gateway }: { gateway: AppGateway }) {
           <DashboardModuleHost visibility={layout.visibility} activity={activity} runsCompleted={runsCompleted} completedCharacters={totals.completedCharacters} characterTotal={characterRows.length} towerCompleted={towerCompleted} towerTotal={towerTotal} gold={gold} monthlyData={monthlyData} />
         </div>
         <footer className="dashboard-footer"><Sparkle size={16} weight="duotone" />Dados atualizados pelo banco local.</footer>
-        </> : page === "management" ? <ManagementPage overview={management} loading={managementLoading} busy={managementBusy} error={managementError} onCreateAccount={createAccount} onCreateCharacter={createCharacter} onEdit={setEditingRegistration} onToggleDungeon={toggleDungeon} /> : page === "history" ? <HistoryPage gateway={gateway} management={management} /> : <SettingsPage layout={layout} busy={layoutBusy} error={layoutError} onToggle={setModuleVisible} onReset={resetLayout} />}
+        </> : page === "management" ? <ManagementPage overview={management} loading={managementLoading} busy={managementBusy} error={managementError} onCreateAccount={createAccount} onCreateCharacter={createCharacter} onEdit={setEditingRegistration} onToggleDungeon={toggleDungeon} /> : page === "reports" ? <ReportsPage gateway={gateway} /> : page === "history" ? <HistoryPage gateway={gateway} management={management} /> : <SettingsPage layout={layout} busy={layoutBusy} error={layoutError} onToggle={setModuleVisible} onReset={resetLayout} />}
       </div>
       {characterDay && <CharacterDayDialog day={characterDay} saving={daySaving} error={dayError} onClose={() => setCharacterDay(null)} onSave={saveCharacterDay} />}
       {towerOpen && <TowerDialog characters={characterRows} saving={towerSaving} error={towerError} onClose={() => setTowerOpen(false)} onSave={registerTower} />}
       {priceModalOpen && <PveBagPriceDialog currentPrice={today?.state === "ready" ? (today.pveBagUnitValueGold ?? null) : null} saving={priceSaving} error={priceError} onClose={() => setPriceModalOpen(false)} onSave={savePveBagPrice} />}
+      {saleModalOpen && <SaleDialog gateway={gateway} isOpen={saleModalOpen} onClose={() => setSaleModalOpen(false)} onSuccess={() => { void loadDashboard(); }} />}
       {editingRegistration && <EditRegistrationDialog draft={editingRegistration} saving={managementBusy} error={managementError} onClose={() => setEditingRegistration(null)} onSave={saveRegistrationEdit} />}
     </div>
   </main>;

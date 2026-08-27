@@ -566,3 +566,170 @@ def test_pve_bag_quote_recording_and_dashboard_today_update(tmp_path: Path) -> N
     assert today_res["data"]["estimatedPveBags"] == 45
     assert today_res["data"]["pveBagUnitValueGold"] == 1250
     assert today_res["data"]["estimatedPveBagMarketValue"] == 45 * 1250
+
+
+@pytest.mark.integration
+def test_reports_overview_aggregates_monthly_kpis_and_character_rankings(tmp_path: Path) -> None:
+    database = SqliteDatabase(tmp_path / "farm.sqlite3", test_temporary_root=tmp_path)
+    MigrationRunner(database, load_migrations(), app_version="0.1.0-test").migrate()
+    _, ids, clock = create_memory_context()
+    uow = SqliteUnitOfWork(database)
+    workspace = WorkspaceService(uow, ids, clock).create_workspace("Pessoal")
+    DungeonCatalogService(uow, ids, clock).seed_confirmed_dungeons(workspace.id)
+
+    bridge = AppBridge(database)
+    acc = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "acc-1",
+                    "method": "management.createAccount",
+                    "payload": {"name": "Conta 1", "serverName": "Valhalla"},
+                }
+            )
+        )
+    )["data"]
+    char = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "char-1",
+                    "method": "management.createCharacter",
+                    "payload": {
+                        "accountId": acc["id"],
+                        "name": "Sentry1",
+                        "className": "Druida",
+                        "level": 100,
+                    },
+                }
+            )
+        )
+    )["data"]
+
+    # Complete activities for character on 2026-08-26
+    char_day = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "cday-1",
+                    "method": "dashboard.characterDay",
+                    "payload": {"characterId": char["id"], "activityDate": "2026-08-26"},
+                }
+            )
+        )
+    )["data"]
+    act_ids = [d["characterActivityId"] for d in char_day["dungeons"][:3]]
+    json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "save-1",
+                    "method": "dashboard.saveCharacterDay",
+                    "payload": {
+                        "characterId": char["id"],
+                        "activityDate": "2026-08-26",
+                        "completedActivityIds": act_ids,
+                    },
+                }
+            )
+        )
+    )
+
+    # Query reports
+    rep_res = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "rep-1",
+                    "method": "reports.overview",
+                    "payload": {"referenceDate": "2026-08-27"},
+                }
+            )
+        )
+    )
+    assert rep_res["ok"] is True
+    data = rep_res["data"]
+    assert data["state"] == "ready"
+    assert data["kpis"]["monthlyFarmGold"] > 0
+    assert data["kpis"]["allTimeFarmGold"] > 0
+    assert data["monthlyTarget"]["percentage"] >= 0
+
+
+@pytest.mark.integration
+def test_currency_rates_and_sales_flow(tmp_path: Path) -> None:
+    database = SqliteDatabase(tmp_path / "farm.sqlite3", test_temporary_root=tmp_path)
+    MigrationRunner(database, load_migrations(), app_version="0.1.0-test").migrate()
+    _, ids, clock = create_memory_context()
+    uow = SqliteUnitOfWork(database)
+    workspace = WorkspaceService(uow, ids, clock).create_workspace("Pessoal")
+    DungeonCatalogService(uow, ids, clock).seed_confirmed_dungeons(workspace.id)
+
+    bridge = AppBridge(database)
+
+    # 1. Fetch currency rate
+    rate_res = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "rate-1",
+                    "method": "currency.getRate",
+                    "payload": {
+                        "baseCurrency": "USD",
+                        "quoteCurrency": "BRL",
+                        "date": "2026-08-27",
+                    },
+                }
+            )
+        )
+    )
+    assert rate_res["ok"] is True
+    assert rate_res["data"]["baseCurrency"] == "USD"
+    assert rate_res["data"]["quoteCurrency"] == "BRL"
+    assert rate_res["data"]["rateMicros"] > 0
+
+    # 2. Record a sale in USD
+    sale_res = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "sale-1",
+                    "method": "sales.record",
+                    "payload": {
+                        "saleType": "pve_bag",
+                        "itemDescription": "Saco de Cristal (PvE)",
+                        "quantity": 10,
+                        "originalAmountMinor": 2500,
+                        "currency": "USD",
+                        "exchangeRateMicros": 5_430_000,
+                        "realAmountMinor": 13575,
+                        "soldAt": "2026-08-27T14:00:00",
+                    },
+                }
+            )
+        )
+    )
+    assert sale_res["ok"] is True
+    assert sale_res["data"]["realAmountMinor"] == 13575
+
+    # 3. Check today activity returns today sales
+    today_act = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "act-1",
+                    "method": "dashboard.todayActivity",
+                    "payload": {"activityDate": "2026-08-27"},
+                }
+            )
+        )
+    )
+    assert today_act["ok"] is True
+    assert today_act["data"]["todaySalesMinor"] == 13575

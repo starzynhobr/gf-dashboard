@@ -66,6 +66,8 @@ export class PreviewGateway implements AppGateway {
         gold,
       })),
       monthlyGoldTotal: 1900000,
+      earnedGoldToday: 310000,
+      todaySalesMinor: 8420,
     });
   }
 
@@ -229,6 +231,114 @@ export class PreviewGateway implements AppGateway {
       quoteId: "preview-quote-1",
       unitValueGold,
       observedAt: new Date().toISOString(),
+    });
+  }
+
+  getReportsOverview(): Promise<import("./AppGateway").ReportsOverviewResult> {
+    return Promise.resolve({
+      state: "ready",
+      kpis: {
+        monthlySalesMinor: 84200,
+        salesChangePercent: 18,
+        monthlyFarmGold: 18420000,
+        farmGoldChangePercent: 12,
+        allTimeFarmGold: 126850000,
+        dailyAverageGold: 614000,
+        monthlyPveBagsSold: 250,
+        pveBagsChangePercent: 25,
+      },
+      dailyEvolution: [
+        { day: 1, activityDate: "2026-08-01", gold: 520000, runs: 70 },
+        { day: 3, activityDate: "2026-08-03", gold: 610000, runs: 85 },
+        { day: 5, activityDate: "2026-08-05", gold: 730000, runs: 100 },
+        { day: 7, activityDate: "2026-08-07", gold: 480000, runs: 65 },
+        { day: 9, activityDate: "2026-08-09", gold: 640000, runs: 90 },
+        { day: 11, activityDate: "2026-08-11", gold: 590000, runs: 80 },
+        { day: 13, activityDate: "2026-08-13", gold: 780000, runs: 110 },
+        { day: 15, activityDate: "2026-08-15", gold: 890000, runs: 125 },
+        { day: 17, activityDate: "2026-08-17", gold: 710000, runs: 95 },
+        { day: 19, activityDate: "2026-08-19", gold: 830000, runs: 115 },
+        { day: 21, activityDate: "2026-08-21", gold: 980000, runs: 140 },
+        { day: 23, activityDate: "2026-08-23", gold: 890000, runs: 120 },
+        { day: 25, activityDate: "2026-08-25", gold: 1120000, runs: 155 },
+        { day: 27, activityDate: "2026-08-27", gold: 1280000, runs: 180 },
+      ],
+      monthlyComparison: {
+        previousMonthName: "Mês passado",
+        previousMonthGold: 16460000,
+        currentMonthName: "Mês atual",
+        currentMonthGold: 18420000,
+        growthPercent: 12,
+      },
+      cumulativeHistory: [
+        { monthLabel: "ago/24", monthKey: "2024-08", cumulativeGold: 8500000 },
+        { monthLabel: "set/24", monthKey: "2024-09", cumulativeGold: 17200000 },
+        { monthLabel: "out/24", monthKey: "2024-10", cumulativeGold: 26800000 },
+        { monthLabel: "nov/24", monthKey: "2024-11", cumulativeGold: 38400000 },
+        { monthLabel: "dez/24", monthKey: "2024-12", cumulativeGold: 49500000 },
+        { monthLabel: "jan/25", monthKey: "2025-01", cumulativeGold: 58200000 },
+        { monthLabel: "fev/25", monthKey: "2025-02", cumulativeGold: 67100000 },
+        { monthLabel: "mar/25", monthKey: "2025-03", cumulativeGold: 76800000 },
+        { monthLabel: "abr/25", monthKey: "2025-04", cumulativeGold: 85400000 },
+        { monthLabel: "mai/25", monthKey: "2025-05", cumulativeGold: 94200000 },
+        { monthLabel: "jun/25", monthKey: "2025-06", cumulativeGold: 103800000 },
+        { monthLabel: "jul/25", monthKey: "2025-07", cumulativeGold: 114500000 },
+        { monthLabel: "ago/26", monthKey: "2026-08", cumulativeGold: 126850000 },
+      ],
+      financialSummary: {
+        salesAmountMinor: 84200,
+        itemsSoldCount: 94,
+        goldConvertedTotal: 18420000,
+        averageTicketMinor: 896,
+      },
+      recentSales: [
+        { id: "sale-1", itemName: "Saco de Cristal (PvE)", quantity: 10, amountMinor: 3500, currency: "BRL", soldAt: "2026-08-27T14:32:00" },
+        { id: "sale-2", itemName: "Pedra da Alma", quantity: 3, amountMinor: 2400, currency: "BRL", soldAt: "2026-08-27T11:18:00" },
+        { id: "sale-3", itemName: "Baú do Tesouro Antigo", quantity: 2, amountMinor: 1800, currency: "BRL", soldAt: "2026-08-26T22:45:00" },
+        { id: "sale-4", itemName: "Saco de Cristal (PvE)", quantity: 5, amountMinor: 1750, currency: "BRL", soldAt: "2026-08-26T19:07:00" },
+      ],
+      monthlyTarget: {
+        targetGold: 25000000,
+        currentGold: 18420000,
+        percentage: 74,
+        remainingGold: 6580000,
+        daysRemaining: 5,
+      },
+      topCharacters: [
+        { rank: 1, characterId: "char-1", characterName: "Sentry1", className: "Druida", goldEarned: 4920000 },
+        { rank: 2, characterId: "char-2", characterName: "StarlightBR", className: "Druida", goldEarned: 4310000 },
+        { rank: 3, characterId: "char-3", characterName: "StarNeTTe", className: "Druida", goldEarned: 3100000 },
+        { rank: 4, characterId: "char-4", characterName: "Starlicia", className: "Druida", goldEarned: 2640000 },
+        { rank: 5, characterId: "char-5", characterName: "StarzynhoBR", className: "Druida", goldEarned: 1370000 },
+      ],
+    });
+  }
+
+  getCurrencyRate(baseCurrency: string, quoteCurrency: string = "BRL", date?: string): Promise<import("./AppGateway").CurrencyRateResult> {
+    const rates: Record<string, { micros: number; formatted: string }> = {
+      USD: { micros: 5_430_000, formatted: "5,43" },
+      EUR: { micros: 6_420_000, formatted: "6,42" },
+      BRL: { micros: 1_000_000, formatted: "1,00" },
+    };
+    const rate = rates[baseCurrency.toUpperCase()] ?? { micros: 1_000_000, formatted: "1,00" };
+    return Promise.resolve({
+      baseCurrency: baseCurrency.toUpperCase(),
+      quoteCurrency: quoteCurrency.toUpperCase(),
+      rateMicros: rate.micros,
+      rateFormatted: rate.formatted,
+      source: "preview",
+      date: date ?? "2026-08-27",
+    });
+  }
+
+  recordSale(input: import("./AppGateway").SaleRegistrationInput): Promise<import("./AppGateway").SaleRegistrationResult> {
+    return Promise.resolve({
+      saleId: "preview-sale-1",
+      realAmountMinor: input.realAmountMinor,
+      originalAmountMinor: input.originalAmountMinor,
+      currency: input.currency,
+      exchangeRateMicros: input.exchangeRateMicros,
+      soldAt: input.soldAt ?? new Date().toISOString(),
     });
   }
 }

@@ -101,6 +101,8 @@ class TodayActivityOverview:
     recent_drops: tuple[RecentDrop, ...]
     monthly_gold: tuple[MonthlyGoldPoint, ...]
     monthly_gold_total: Gold
+    earned_gold_today: Gold
+    today_sales_minor: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,3 +157,87 @@ class HistoryDayDetail:
     characters: tuple[HistoryCharacterDetail, ...]
     tower_sessions: tuple[HistoryTowerSession, ...]
     drops: tuple[RecentDrop, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ReportKpis:
+    monthly_sales_minor: int
+    sales_change_percent: int
+    monthly_farm_gold: Gold
+    farm_gold_change_percent: int
+    all_time_farm_gold: Gold
+    daily_average_gold: Gold
+    monthly_pve_bags_sold: int
+    pve_bags_change_percent: int
+
+
+@dataclass(frozen=True, slots=True)
+class DailyEvolutionPoint:
+    day: int
+    activity_date: date
+    gold: Gold
+    runs: int
+
+
+@dataclass(frozen=True, slots=True)
+class MonthlyComparison:
+    previous_month_name: str
+    previous_month_gold: Gold
+    current_month_name: str
+    current_month_gold: Gold
+    growth_percent: int
+
+
+@dataclass(frozen=True, slots=True)
+class CumulativeMonthPoint:
+    month_label: str
+    month_key: str
+    cumulative_gold: Gold
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialSummary:
+    sales_amount_minor: int
+    items_sold_count: int
+    gold_converted_total: Gold
+    average_ticket_minor: int
+
+
+@dataclass(frozen=True, slots=True)
+class RecentSaleRow:
+    id: str
+    item_name: str
+    quantity: int
+    amount_minor: int
+    currency: str
+    sold_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class MonthlyTarget:
+    target_gold: Gold
+    current_gold: Gold
+    percentage: int
+    remaining_gold: Gold
+    days_remaining: int
+
+
+@dataclass(frozen=True, slots=True)
+class TopCharacterRow:
+    rank: int
+    character_id: str
+    character_name: str
+    class_name: str
+    gold_earned: Gold
+
+
+@dataclass(frozen=True, slots=True)
+class ReportsOverview:
+    kpis: ReportKpis
+    daily_evolution: tuple[DailyEvolutionPoint, ...]
+    monthly_comparison: MonthlyComparison
+    cumulative_history: tuple[CumulativeMonthPoint, ...]
+    financial_summary: FinancialSummary
+    recent_sales: tuple[RecentSaleRow, ...]
+    monthly_target: MonthlyTarget
+    top_characters: tuple[TopCharacterRow, ...]

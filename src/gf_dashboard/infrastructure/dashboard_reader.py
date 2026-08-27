@@ -6,6 +6,9 @@ from uuid import UUID
 from gf_dashboard.application.read_models import (
     CharacterDay,
     CharacterDayDungeon,
+    CumulativeMonthPoint,
+    DailyEvolutionPoint,
+    FinancialSummary,
     HistoryCharacterDetail,
     HistoryDayDetail,
     HistoryDaySummary,
@@ -14,12 +17,18 @@ from gf_dashboard.application.read_models import (
     ManagementAccount,
     ManagementCharacter,
     ManagementOverview,
+    MonthlyComparison,
     MonthlyGoldPoint,
+    MonthlyTarget,
     RecentDrop,
+    RecentSaleRow,
+    ReportKpis,
+    ReportsOverview,
     RoutineDungeon,
     TodayActivityOverview,
     TodayCharacter,
     TodayEstimate,
+    TopCharacterRow,
 )
 from gf_dashboard.domain.value_objects import EntityId, Gold, WorkspaceId
 from gf_dashboard.infrastructure.persistence import SqliteDatabase
@@ -405,6 +414,41 @@ class SqliteDashboardReader:
                 MonthlyGoldPoint(date.fromisoformat(row["activity_date"]), Gold(int(row["gold"])))
                 for row in month_rows
             )
+
+            # Today's earned gold & sales
+            act_date_str = activity_date.isoformat()
+            today_gold_row = connection.execute(
+                """
+                SELECT COALESCE(SUM(gold), 0) AS gold
+                FROM (
+                    SELECT ac.gold_reward_snapshot AS gold
+                    FROM activity_completions ac
+                    JOIN daily_activity_entries dae
+                      ON dae.id = ac.daily_activity_entry_id AND dae.deleted_at IS NULL
+                    WHERE ac.workspace_id = ? AND ac.deleted_at IS NULL
+                      AND dae.activity_date = ?
+                    UNION ALL
+                    SELECT fs.gold_earned AS gold
+                    FROM farm_sessions fs
+                    WHERE fs.workspace_id = ? AND fs.status = 'completed'
+                      AND fs.deleted_at IS NULL AND fs.activity_date = ?
+                )
+                """,
+                (workspace_id, act_date_str, workspace_id, act_date_str),
+            ).fetchone()
+            earned_gold_today = int(today_gold_row["gold"]) if today_gold_row else 0
+
+            today_sales_row = connection.execute(
+                """
+                SELECT COALESCE(SUM(real_amount_minor), 0) AS sales_minor
+                FROM sales
+                WHERE workspace_id = ? AND status = 'completed' AND deleted_at IS NULL
+                  AND (sold_at LIKE ? || '%' OR SUBSTR(sold_at, 1, 10) = ?)
+                """,
+                (workspace_id, act_date_str, act_date_str),
+            ).fetchone()
+            today_sales_minor = int(today_sales_row["sales_minor"]) if today_sales_row else 0
+
             return TodayActivityOverview(
                 runs_completed=int(runs["total"]),
                 tower_completed=int(towers["completed"]),
@@ -419,6 +463,8 @@ class SqliteDashboardReader:
                 ),
                 monthly_gold=monthly_gold,
                 monthly_gold_total=Gold(sum(point.gold.amount for point in monthly_gold)),
+                earned_gold_today=Gold(earned_gold_today),
+                today_sales_minor=today_sales_minor,
             )
         finally:
             connection.close()
@@ -774,6 +820,417 @@ class SqliteDashboardReader:
                 characters=tuple(char_details),
                 tower_sessions=tuple(tower_sessions),
                 drops=all_drops,
+            )
+        finally:
+            connection.close()
+
+    def reports_overview_for_default_workspace(
+        self, reference_date: date | None = None
+    ) -> ReportsOverview | None:
+        connection = self._database.connect(read_only=True)
+        try:
+            workspace = connection.execute(
+                "SELECT id FROM workspaces WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1"
+            ).fetchone()
+            if workspace is None:
+                return None
+            workspace_id = workspace["id"]
+
+            if reference_date is None:
+                # Find latest activity date or today
+                latest_row = connection.execute(
+                    """
+                    SELECT MAX(activity_date) AS latest_date
+                    FROM (
+                        SELECT activity_date FROM daily_activity_entries
+                        WHERE workspace_id = ? AND deleted_at IS NULL
+                        UNION ALL
+                        SELECT activity_date FROM farm_sessions
+                        WHERE workspace_id = ? AND deleted_at IS NULL
+                    )
+                    """,
+                    (workspace_id, workspace_id),
+                ).fetchone()
+                if latest_row and latest_row["latest_date"]:
+                    reference_date = date.fromisoformat(latest_row["latest_date"])
+                else:
+                    reference_date = date.today()
+
+            # Date boundaries
+            month_start = reference_date.replace(day=1)
+            if month_start.month == 12:
+                next_month_start = month_start.replace(year=month_start.year + 1, month=1)
+            else:
+                next_month_start = month_start.replace(month=month_start.month + 1)
+
+            if month_start.month == 1:
+                prev_month_start = month_start.replace(year=month_start.year - 1, month=12)
+            else:
+                prev_month_start = month_start.replace(month=month_start.month - 1)
+
+            month_start_str = month_start.isoformat()
+            next_month_start_str = next_month_start.isoformat()
+            prev_month_start_str = prev_month_start.isoformat()
+
+            # 1. Current Month Gold & Bags
+            cur_facts = connection.execute(
+                """
+                SELECT COALESCE(SUM(gold), 0) AS gold, COALESCE(SUM(bags), 0) AS bags
+                FROM (
+                    SELECT ac.gold_reward_snapshot AS gold, ac.pve_bags_snapshot AS bags
+                    FROM activity_completions ac
+                    JOIN daily_activity_entries dae
+                      ON dae.id = ac.daily_activity_entry_id AND dae.deleted_at IS NULL
+                    WHERE ac.workspace_id = ? AND ac.deleted_at IS NULL
+                      AND dae.activity_date >= ? AND dae.activity_date < ?
+                    UNION ALL
+                    SELECT fs.gold_earned AS gold, fs.pve_bags_earned AS bags
+                    FROM farm_sessions fs
+                    WHERE fs.workspace_id = ? AND fs.status = 'completed' AND fs.deleted_at IS NULL
+                      AND fs.activity_date >= ? AND fs.activity_date < ?
+                )
+                """,
+                (
+                    workspace_id,
+                    month_start_str,
+                    next_month_start_str,
+                    workspace_id,
+                    month_start_str,
+                    next_month_start_str,
+                ),
+            ).fetchone()
+            cur_month_gold = int(cur_facts["gold"]) if cur_facts else 0
+            cur_month_bags = int(cur_facts["bags"]) if cur_facts else 0
+
+            # 2. Previous Month Gold & Bags
+            prev_facts = connection.execute(
+                """
+                SELECT COALESCE(SUM(gold), 0) AS gold, COALESCE(SUM(bags), 0) AS bags
+                FROM (
+                    SELECT ac.gold_reward_snapshot AS gold, ac.pve_bags_snapshot AS bags
+                    FROM activity_completions ac
+                    JOIN daily_activity_entries dae
+                      ON dae.id = ac.daily_activity_entry_id AND dae.deleted_at IS NULL
+                    WHERE ac.workspace_id = ? AND ac.deleted_at IS NULL
+                      AND dae.activity_date >= ? AND dae.activity_date < ?
+                    UNION ALL
+                    SELECT fs.gold_earned AS gold, fs.pve_bags_earned AS bags
+                    FROM farm_sessions fs
+                    WHERE fs.workspace_id = ? AND fs.status = 'completed' AND fs.deleted_at IS NULL
+                      AND fs.activity_date >= ? AND fs.activity_date < ?
+                )
+                """,
+                (
+                    workspace_id,
+                    prev_month_start_str,
+                    month_start_str,
+                    workspace_id,
+                    prev_month_start_str,
+                    month_start_str,
+                ),
+            ).fetchone()
+            prev_month_gold = int(prev_facts["gold"]) if prev_facts else 0
+            prev_month_bags = int(prev_facts["bags"]) if prev_facts else 0
+
+            # 3. All Time Farm Gold
+            all_time_row = connection.execute(
+                """
+                SELECT COALESCE(SUM(gold), 0) AS gold
+                FROM (
+                    SELECT ac.gold_reward_snapshot AS gold
+                    FROM activity_completions ac
+                    WHERE ac.workspace_id = ? AND ac.deleted_at IS NULL
+                    UNION ALL
+                    SELECT fs.gold_earned AS gold
+                    FROM farm_sessions fs
+                    WHERE fs.workspace_id = ? AND fs.status = 'completed' AND fs.deleted_at IS NULL
+                )
+                """,
+                (workspace_id, workspace_id),
+            ).fetchone()
+            all_time_gold = int(all_time_row["gold"]) if all_time_row else 0
+
+            # 4. Sales & Financials
+            cur_sales_row = connection.execute(
+                """
+                SELECT COALESCE(SUM(real_amount_minor), 0) AS sales_minor,
+                       COALESCE(SUM(gold_quantity), 0) AS gold_converted,
+                       COUNT(id) AS sales_count
+                FROM sales
+                WHERE workspace_id = ? AND status = 'completed' AND deleted_at IS NULL
+                  AND sold_at >= ? AND sold_at < ?
+                """,
+                (workspace_id, month_start_str, next_month_start_str),
+            ).fetchone()
+            monthly_sales_minor = int(cur_sales_row["sales_minor"]) if cur_sales_row else 0
+            monthly_gold_converted = int(cur_sales_row["gold_converted"]) if cur_sales_row else 0
+            monthly_sales_count = int(cur_sales_row["sales_count"]) if cur_sales_row else 0
+
+            prev_sales_row = connection.execute(
+                """
+                SELECT COALESCE(SUM(real_amount_minor), 0) AS sales_minor
+                FROM sales
+                WHERE workspace_id = ? AND status = 'completed' AND deleted_at IS NULL
+                  AND sold_at >= ? AND sold_at < ?
+                """,
+                (workspace_id, prev_month_start_str, month_start_str),
+            ).fetchone()
+            prev_sales_minor = int(prev_sales_row["sales_minor"]) if prev_sales_row else 0
+
+            all_sales_row = connection.execute(
+                """
+                SELECT COALESCE(SUM(real_amount_minor), 0) AS total_sales_minor,
+                       COALESCE(SUM(gold_quantity), 0) AS total_gold_converted,
+                       COUNT(id) AS total_sales_count
+                FROM sales
+                WHERE workspace_id = ? AND status = 'completed' AND deleted_at IS NULL
+                """,
+                (workspace_id,),
+            ).fetchone()
+            total_sales_minor = int(all_sales_row["total_sales_minor"]) if all_sales_row else 0
+            total_gold_converted = (
+                int(all_sales_row["total_gold_converted"]) if all_sales_row else 0
+            )
+            total_sales_count = int(all_sales_row["total_sales_count"]) if all_sales_row else 0
+
+            # Items sold count (from inventory movements or sales)
+            items_sold_row = connection.execute(
+                """
+                SELECT COALESCE(SUM(ABS(quantity_delta)), 0) AS items_sold
+                FROM inventory_movements
+                WHERE workspace_id = ? AND movement_type = 'sale' AND deleted_at IS NULL
+                """,
+                (workspace_id,),
+            ).fetchone()
+            items_sold_count = (
+                int(items_sold_row["items_sold"])
+                if items_sold_row and items_sold_row["items_sold"] > 0
+                else total_sales_count
+            )
+
+            # Growth / Change percentages
+            farm_gold_change_percent = (
+                round(((cur_month_gold - prev_month_gold) / prev_month_gold) * 100)
+                if prev_month_gold > 0
+                else (100 if cur_month_gold > 0 else 0)
+            )
+            sales_change_percent = (
+                round(((monthly_sales_minor - prev_sales_minor) / prev_sales_minor) * 100)
+                if prev_sales_minor > 0
+                else (100 if monthly_sales_minor > 0 else 0)
+            )
+            pve_bags_change_percent = (
+                round(((cur_month_bags - prev_month_bags) / prev_month_bags) * 100)
+                if prev_month_bags > 0
+                else (100 if cur_month_bags > 0 else 0)
+            )
+
+            days_passed = max(1, reference_date.day)
+            daily_avg_gold = cur_month_gold // days_passed
+
+            kpis = ReportKpis(
+                monthly_sales_minor=monthly_sales_minor,
+                sales_change_percent=sales_change_percent,
+                monthly_farm_gold=Gold(cur_month_gold),
+                farm_gold_change_percent=farm_gold_change_percent,
+                all_time_farm_gold=Gold(all_time_gold),
+                daily_average_gold=Gold(daily_avg_gold),
+                monthly_pve_bags_sold=cur_month_bags,
+                pve_bags_change_percent=pve_bags_change_percent,
+            )
+
+            # 5. Daily Evolution (Evolução do Mês)
+            daily_rows = connection.execute(
+                """
+                SELECT activity_date, SUM(gold) AS gold, SUM(runs) AS runs
+                FROM (
+                    SELECT dae.activity_date, ac.gold_reward_snapshot AS gold, 1 AS runs
+                    FROM activity_completions ac
+                    JOIN daily_activity_entries dae
+                      ON dae.id = ac.daily_activity_entry_id AND dae.deleted_at IS NULL
+                    WHERE ac.workspace_id = ? AND ac.deleted_at IS NULL
+                      AND dae.activity_date >= ? AND dae.activity_date < ?
+                    UNION ALL
+                    SELECT fs.activity_date, fs.gold_earned AS gold, fs.runs_count AS runs
+                    FROM farm_sessions fs
+                    WHERE fs.workspace_id = ? AND fs.status = 'completed' AND fs.deleted_at IS NULL
+                      AND fs.activity_date >= ? AND fs.activity_date < ?
+                )
+                GROUP BY activity_date
+                ORDER BY activity_date
+                """,
+                (
+                    workspace_id,
+                    month_start_str,
+                    next_month_start_str,
+                    workspace_id,
+                    month_start_str,
+                    next_month_start_str,
+                ),
+            ).fetchall()
+            daily_evolution = tuple(
+                DailyEvolutionPoint(
+                    day=date.fromisoformat(row["activity_date"]).day,
+                    activity_date=date.fromisoformat(row["activity_date"]),
+                    gold=Gold(int(row["gold"])),
+                    runs=int(row["runs"]),
+                )
+                for row in daily_rows
+            )
+
+            # 6. Monthly Comparison (Comparativo Mensal)
+            monthly_comparison = MonthlyComparison(
+                previous_month_name="Mês passado",
+                previous_month_gold=Gold(prev_month_gold),
+                current_month_name="Mês atual",
+                current_month_gold=Gold(cur_month_gold),
+                growth_percent=farm_gold_change_percent,
+            )
+
+            # 7. Cumulative History (Acumulado desde o início)
+            monthly_history_rows = connection.execute(
+                """
+                SELECT SUBSTR(activity_date, 1, 7) AS month_key, SUM(gold) AS month_gold
+                FROM (
+                    SELECT dae.activity_date, ac.gold_reward_snapshot AS gold
+                    FROM activity_completions ac
+                    JOIN daily_activity_entries dae
+                      ON dae.id = ac.daily_activity_entry_id AND dae.deleted_at IS NULL
+                    WHERE ac.workspace_id = ? AND ac.deleted_at IS NULL
+                    UNION ALL
+                    SELECT fs.activity_date, fs.gold_earned AS gold
+                    FROM farm_sessions fs
+                    WHERE fs.workspace_id = ? AND fs.status = 'completed' AND fs.deleted_at IS NULL
+                )
+                GROUP BY month_key
+                ORDER BY month_key
+                """,
+                (workspace_id, workspace_id),
+            ).fetchall()
+            cumulative_list: list[CumulativeMonthPoint] = []
+            running_cum = 0
+            for r in monthly_history_rows:
+                running_cum += int(r["month_gold"])
+                # Format label: 2026-08 -> ago/26
+                m_key = r["month_key"]
+                parts = m_key.split("-")
+                m_num = int(parts[1])
+                y_short = parts[0][2:]
+                month_names = [
+                    "jan",
+                    "fev",
+                    "mar",
+                    "abr",
+                    "mai",
+                    "jun",
+                    "jul",
+                    "ago",
+                    "set",
+                    "out",
+                    "nov",
+                    "dez",
+                ]
+                label = f"{month_names[m_num - 1]}/{y_short}"
+                cumulative_list.append(
+                    CumulativeMonthPoint(
+                        month_label=label,
+                        month_key=m_key,
+                        cumulative_gold=Gold(running_cum),
+                    )
+                )
+
+            # 8. Financial Summary & Recent Sales
+            avg_ticket = (
+                monthly_sales_minor // monthly_sales_count
+                if monthly_sales_count > 0
+                else (total_sales_minor // total_sales_count if total_sales_count > 0 else 0)
+            )
+            financial_summary = FinancialSummary(
+                sales_amount_minor=monthly_sales_minor or total_sales_minor,
+                items_sold_count=items_sold_count,
+                gold_converted_total=Gold(monthly_gold_converted or total_gold_converted),
+                average_ticket_minor=avg_ticket,
+            )
+
+            recent_sales_rows = connection.execute(
+                """
+                SELECT id, buyer_reference, real_amount_minor, currency, sold_at
+                FROM sales
+                WHERE workspace_id = ? AND deleted_at IS NULL
+                ORDER BY sold_at DESC, created_at DESC
+                LIMIT 5
+                """,
+                (workspace_id,),
+            ).fetchall()
+            recent_sales = tuple(
+                RecentSaleRow(
+                    id=sr["id"],
+                    item_name=sr["buyer_reference"] or "Item comercializado",
+                    quantity=1,
+                    amount_minor=int(sr["real_amount_minor"] or 0),
+                    currency=sr["currency"] or "BRL",
+                    sold_at=datetime.fromisoformat(sr["sold_at"])
+                    if sr["sold_at"]
+                    else datetime.now(),
+                )
+                for sr in recent_sales_rows
+            )
+
+            # 9. Monthly Target (Meta do Mês)
+            target_gold = Gold(25_000_000)
+            target_pct = (
+                min(100, round((cur_month_gold / target_gold.amount) * 100))
+                if target_gold.amount > 0
+                else 0
+            )
+            rem_gold = max(0, target_gold.amount - cur_month_gold)
+            days_left = max(0, (next_month_start - reference_date).days)
+            monthly_target = MonthlyTarget(
+                target_gold=target_gold,
+                current_gold=Gold(cur_month_gold),
+                percentage=target_pct,
+                remaining_gold=Gold(rem_gold),
+                days_remaining=days_left,
+            )
+
+            # 10. Top Characters of the Month
+            top_char_rows = connection.execute(
+                """
+                SELECT c.id, c.name, c.class_name, COALESCE(SUM(ac.gold_reward_snapshot), 0) AS gold
+                FROM characters c
+                JOIN character_activities ca ON ca.character_id = c.id AND ca.deleted_at IS NULL
+                JOIN daily_activity_entries dae
+                  ON dae.character_activity_id = ca.id AND dae.deleted_at IS NULL
+                JOIN activity_completions ac
+                  ON ac.daily_activity_entry_id = dae.id AND ac.deleted_at IS NULL
+                WHERE c.workspace_id = ? AND c.is_active = 1 AND c.deleted_at IS NULL
+                  AND dae.activity_date >= ? AND dae.activity_date < ?
+                GROUP BY c.id
+                ORDER BY gold DESC, c.name
+                LIMIT 5
+                """,
+                (workspace_id, month_start_str, next_month_start_str),
+            ).fetchall()
+            top_characters = tuple(
+                TopCharacterRow(
+                    rank=idx + 1,
+                    character_id=tcr["id"],
+                    character_name=tcr["name"],
+                    class_name=tcr["class_name"],
+                    gold_earned=Gold(int(tcr["gold"])),
+                )
+                for idx, tcr in enumerate(top_char_rows)
+            )
+
+            return ReportsOverview(
+                kpis=kpis,
+                daily_evolution=daily_evolution,
+                monthly_comparison=monthly_comparison,
+                cumulative_history=tuple(cumulative_list),
+                financial_summary=financial_summary,
+                recent_sales=recent_sales,
+                monthly_target=monthly_target,
+                top_characters=top_characters,
             )
         finally:
             connection.close()

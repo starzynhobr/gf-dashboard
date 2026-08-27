@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, datetime
 from typing import Any, cast
 from uuid import UUID
 
 from PySide6.QtCore import QObject, Slot
 
 from gf_dashboard.application.catalog import DungeonCatalogService
+from gf_dashboard.application.currency_rates import CurrencyRateService
 from gf_dashboard.application.market_quotes import MarketQuoteService
 from gf_dashboard.application.ports import FarmUnitOfWork, TowerUnitOfWork
+from gf_dashboard.application.sales import SaleService
 from gf_dashboard.application.services import (
     ActivityCompletionService,
     DashboardLayoutService,
@@ -150,6 +152,8 @@ class AppBridge(QObject):
                             for point in overview.monthly_gold
                         ],
                         "monthlyGoldTotal": overview.monthly_gold_total.amount,
+                        "earnedGoldToday": overview.earned_gold_today.amount,
+                        "todaySalesMinor": overview.today_sales_minor,
                     },
                 )
             if method == "dashboard.characterDay":
@@ -544,6 +548,156 @@ class AppBridge(QObject):
                         "quoteId": str(quote.id),
                         "unitValueGold": quote.unit_value_gold.amount,
                         "observedAt": quote.observed_at.isoformat(),
+                    },
+                )
+            if method == "currency.getRate":
+                base_curr = self._required_string(payload, "baseCurrency")
+                raw_quote = payload.get("quoteCurrency")
+                quote_curr: str = (
+                    raw_quote if isinstance(raw_quote, str) and raw_quote.strip() else "BRL"
+                )
+                raw_date = payload.get("date")
+                rate_date = (
+                    date.fromisoformat(raw_date)
+                    if isinstance(raw_date, str) and raw_date.strip()
+                    else None
+                )
+                rate_micros, source = CurrencyRateService(self._required_database()).get_rate(
+                    base_curr, quote_curr, rate_date
+                )
+                rate_val = rate_micros / 1_000_000
+                rate_formatted = f"{rate_val:.4f}".rstrip("0").rstrip(".").replace(".", ",")
+                return self._success(
+                    request_id,
+                    {
+                        "baseCurrency": base_curr.upper(),
+                        "quoteCurrency": quote_curr.upper(),
+                        "rateMicros": rate_micros,
+                        "rateFormatted": rate_formatted,
+                        "source": source,
+                        "date": (rate_date or date.today()).isoformat(),
+                    },
+                )
+            if method == "sales.record":
+                sale_type = self._required_string(payload, "saleType")
+                item_desc = self._required_string(payload, "itemDescription")
+                quantity = self._required_int(payload, "quantity", minimum=1)
+                orig_amount = self._required_int(payload, "originalAmountMinor", minimum=1)
+                currency = self._required_string(payload, "currency")
+                exchange_rate = self._required_int(payload, "exchangeRateMicros", minimum=1)
+                real_amount = self._required_int(payload, "realAmountMinor", minimum=1)
+                sold_at_str = payload.get("soldAt")
+                sold_at = (
+                    datetime.fromisoformat(sold_at_str)
+                    if isinstance(sold_at_str, str) and sold_at_str.strip()
+                    else None
+                )
+                sale_res = SaleService(self._required_database()).record_sale(
+                    self._default_workspace_id(),
+                    sale_type=sale_type,
+                    item_description=item_desc,
+                    quantity=quantity,
+                    original_amount_minor=orig_amount,
+                    currency=currency,
+                    exchange_rate_micros=exchange_rate,
+                    real_amount_minor=real_amount,
+                    sold_at=sold_at,
+                )
+                return self._success(request_id, sale_res)
+            if method == "reports.overview":
+                if self._dashboard_reader is None:
+                    return self._error(
+                        request_id, "service_unavailable", "Relatório local indisponível"
+                    )
+                ref_date: date | None = None
+                raw_ref = payload.get("referenceDate")
+                if raw_ref is not None:
+                    if not isinstance(raw_ref, str):
+                        raise ValueError("referenceDate must be an ISO date string")
+                    ref_date = date.fromisoformat(raw_ref)
+
+                reports = self._dashboard_reader.reports_overview_for_default_workspace(ref_date)
+                if reports is None:
+                    return self._success(request_id, {"state": "empty"})
+
+                return self._success(
+                    request_id,
+                    {
+                        "state": "ready",
+                        "kpis": {
+                            "monthlySalesMinor": reports.kpis.monthly_sales_minor,
+                            "salesChangePercent": reports.kpis.sales_change_percent,
+                            "monthlyFarmGold": reports.kpis.monthly_farm_gold.amount,
+                            "farmGoldChangePercent": reports.kpis.farm_gold_change_percent,
+                            "allTimeFarmGold": reports.kpis.all_time_farm_gold.amount,
+                            "dailyAverageGold": reports.kpis.daily_average_gold.amount,
+                            "monthlyPveBagsSold": reports.kpis.monthly_pve_bags_sold,
+                            "pveBagsChangePercent": reports.kpis.pve_bags_change_percent,
+                        },
+                        "dailyEvolution": [
+                            {
+                                "day": pt.day,
+                                "activityDate": pt.activity_date.isoformat(),
+                                "gold": pt.gold.amount,
+                                "runs": pt.runs,
+                            }
+                            for pt in reports.daily_evolution
+                        ],
+                        "monthlyComparison": {
+                            "previousMonthName": reports.monthly_comparison.previous_month_name,
+                            "previousMonthGold": (
+                                reports.monthly_comparison.previous_month_gold.amount
+                            ),
+                            "currentMonthName": reports.monthly_comparison.current_month_name,
+                            "currentMonthGold": (
+                                reports.monthly_comparison.current_month_gold.amount
+                            ),
+                            "growthPercent": reports.monthly_comparison.growth_percent,
+                        },
+                        "cumulativeHistory": [
+                            {
+                                "monthLabel": cpt.month_label,
+                                "monthKey": cpt.month_key,
+                                "cumulativeGold": cpt.cumulative_gold.amount,
+                            }
+                            for cpt in reports.cumulative_history
+                        ],
+                        "financialSummary": {
+                            "salesAmountMinor": reports.financial_summary.sales_amount_minor,
+                            "itemsSoldCount": reports.financial_summary.items_sold_count,
+                            "goldConvertedTotal": (
+                                reports.financial_summary.gold_converted_total.amount
+                            ),
+                            "averageTicketMinor": reports.financial_summary.average_ticket_minor,
+                        },
+                        "recentSales": [
+                            {
+                                "id": sale.id,
+                                "itemName": sale.item_name,
+                                "quantity": sale.quantity,
+                                "amountMinor": sale.amount_minor,
+                                "currency": sale.currency,
+                                "soldAt": sale.sold_at.isoformat(),
+                            }
+                            for sale in reports.recent_sales
+                        ],
+                        "monthlyTarget": {
+                            "targetGold": reports.monthly_target.target_gold.amount,
+                            "currentGold": reports.monthly_target.current_gold.amount,
+                            "percentage": reports.monthly_target.percentage,
+                            "remainingGold": reports.monthly_target.remaining_gold.amount,
+                            "daysRemaining": reports.monthly_target.days_remaining,
+                        },
+                        "topCharacters": [
+                            {
+                                "rank": tc.rank,
+                                "characterId": tc.character_id,
+                                "characterName": tc.character_name,
+                                "className": tc.class_name,
+                                "goldEarned": tc.gold_earned.amount,
+                            }
+                            for tc in reports.top_characters
+                        ],
                     },
                 )
             if method == "workspace.create":

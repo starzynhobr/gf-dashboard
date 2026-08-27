@@ -91,6 +91,18 @@ export class QtGateway implements AppGateway {
     return this.invoke("market.recordPveBagQuote", { unitValueGold, source });
   }
 
+  getReportsOverview(referenceDate?: string): Promise<import("./AppGateway").ReportsOverviewResult> {
+    return this.invoke("reports.overview", { referenceDate });
+  }
+
+  getCurrencyRate(baseCurrency: string, quoteCurrency?: string, date?: string): Promise<import("./AppGateway").CurrencyRateResult> {
+    return this.invoke("currency.getRate", { baseCurrency, quoteCurrency, date });
+  }
+
+  recordSale(input: import("./AppGateway").SaleRegistrationInput): Promise<import("./AppGateway").SaleRegistrationResult> {
+    return this.invoke("sales.record", { ...input });
+  }
+
   private async invoke<T>(method: string, payload: Record<string, unknown>): Promise<T> {
     const bridge = await this.getBridge();
     const requestId = crypto.randomUUID();

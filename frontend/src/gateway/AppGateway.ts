@@ -45,6 +45,8 @@ export type TodayActivityResult = {
     gold: number;
   }>;
   monthlyGoldTotal: number;
+  earnedGoldToday?: number;
+  todaySalesMinor?: number;
 };
 
 export type ManagementOverviewResult =
@@ -165,6 +167,113 @@ export interface HistoryDayDetailResult {
   }>;
 }
 
+export interface ReportKpis {
+  monthlySalesMinor: number;
+  salesChangePercent: number;
+  monthlyFarmGold: number;
+  farmGoldChangePercent: number;
+  allTimeFarmGold: number;
+  dailyAverageGold: number;
+  monthlyPveBagsSold: number;
+  pveBagsChangePercent: number;
+}
+
+export interface DailyEvolutionPoint {
+  day: number;
+  activityDate: string;
+  gold: number;
+  runs: number;
+}
+
+export interface MonthlyComparison {
+  previousMonthName: string;
+  previousMonthGold: number;
+  currentMonthName: string;
+  currentMonthGold: number;
+  growthPercent: number;
+}
+
+export interface CumulativeMonthPoint {
+  monthLabel: string;
+  monthKey: string;
+  cumulativeGold: number;
+}
+
+export interface FinancialSummary {
+  salesAmountMinor: number;
+  itemsSoldCount: number;
+  goldConvertedTotal: number;
+  averageTicketMinor: number;
+}
+
+export interface RecentSaleRow {
+  id: string;
+  itemName: string;
+  quantity: number;
+  amountMinor: number;
+  currency: string;
+  soldAt: string;
+}
+
+export interface MonthlyTarget {
+  targetGold: number;
+  currentGold: number;
+  percentage: number;
+  remainingGold: number;
+  daysRemaining: number;
+}
+
+export interface TopCharacterRow {
+  rank: number;
+  characterId: string;
+  characterName: string;
+  className: string;
+  goldEarned: number;
+}
+
+export type ReportsOverviewResult =
+  | { state: "empty" }
+  | {
+      state: "ready";
+      kpis: ReportKpis;
+      dailyEvolution: DailyEvolutionPoint[];
+      monthlyComparison: MonthlyComparison;
+      cumulativeHistory: CumulativeMonthPoint[];
+      financialSummary: FinancialSummary;
+      recentSales: RecentSaleRow[];
+      monthlyTarget: MonthlyTarget;
+      topCharacters: TopCharacterRow[];
+    };
+
+export interface CurrencyRateResult {
+  baseCurrency: string;
+  quoteCurrency: string;
+  rateMicros: number;
+  rateFormatted: string;
+  source: string;
+  date: string;
+}
+
+export interface SaleRegistrationInput {
+  saleType: "gold" | "pve_bag" | "item";
+  itemDescription: string;
+  quantity: number;
+  originalAmountMinor: number;
+  currency: string;
+  exchangeRateMicros: number;
+  realAmountMinor: number;
+  soldAt?: string;
+}
+
+export interface SaleRegistrationResult {
+  saleId: string;
+  realAmountMinor: number;
+  originalAmountMinor: number;
+  currency: string;
+  exchangeRateMicros: number;
+  soldAt: string;
+}
+
 export interface AppGateway {
   ping(): Promise<PingResult>;
   getToday(): Promise<TodayResult>;
@@ -186,6 +295,9 @@ export interface AppGateway {
   getHistoryOverview(filter?: HistoryFilterInput): Promise<HistoryOverviewResult>;
   getHistoryDayDetail(activityDate: string, filter?: HistoryFilterInput): Promise<HistoryDayDetailResult>;
   recordPveBagQuote(unitValueGold: number, source?: string): Promise<{ quoteId: string; unitValueGold: number; observedAt: string }>;
+  getReportsOverview(referenceDate?: string): Promise<ReportsOverviewResult>;
+  getCurrencyRate(baseCurrency: string, quoteCurrency?: string, date?: string): Promise<CurrencyRateResult>;
+  recordSale(input: SaleRegistrationInput): Promise<SaleRegistrationResult>;
 }
 
 export class GatewayError extends Error {

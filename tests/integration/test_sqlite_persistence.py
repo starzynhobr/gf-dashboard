@@ -33,8 +33,8 @@ def runner(database_path: Path, tmp_path: Path) -> MigrationRunner:
 def test_migrate_clean_database_creates_v1_schema_and_indexes(
     runner: MigrationRunner, database_path: Path, tmp_path: Path
 ) -> None:
-    assert runner.migrate() == 3
-    assert runner.current_version() == 3
+    assert runner.migrate() == 4
+    assert runner.current_version() == 4
 
     connection = SqliteDatabase(database_path, test_temporary_root=tmp_path).connect()
     try:
@@ -54,6 +54,7 @@ def test_migrate_clean_database_creates_v1_schema_and_indexes(
             "workspaces",
             "activity_completions",
             "tower_session_details",
+            "currency_rates",
             "schema_migrations",
         } <= tables
         assert "daily_activity_entries_date_idx" in indexes
@@ -81,7 +82,7 @@ def test_migrate_again_is_idempotent_and_does_not_create_backup_when_nothing_is_
 ) -> None:
     runner.migrate()
 
-    assert runner.migrate() == 3
+    assert runner.migrate() == 4
     assert not (database_path.parent / "backups").exists()
 
 
@@ -128,7 +129,7 @@ def test_failed_migration_rolls_back_and_keeps_verified_backup(
     runner.migrate()
     failed_runner = MigrationRunner(
         SqliteDatabase(database_path, test_temporary_root=tmp_path),
-        (*load_migrations(), Migration(version=4, name="broken", sql="CREATE TABLE broken (id;")),
+        (*load_migrations(), Migration(version=5, name="broken", sql="CREATE TABLE broken (id;")),
         app_version="0.1.0-test",
     )
 
@@ -137,7 +138,7 @@ def test_failed_migration_rolls_back_and_keeps_verified_backup(
 
     assert error.value.backup_path is not None
     assert error.value.backup_path.is_file()
-    assert failed_runner.current_version() == 3
+    assert failed_runner.current_version() == 4
     connection = sqlite3.connect(database_path)
     try:
         assert (

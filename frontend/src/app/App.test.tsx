@@ -35,6 +35,23 @@ function createGateway(overrides: Partial<AppGateway> = {}): AppGateway {
       drops: [],
     }),
     recordPveBagQuote: async (unitValueGold) => ({ quoteId: "quote-1", unitValueGold, observedAt: "2026-08-26T20:00:00" }),
+    getReportsOverview: async () => ({ state: "empty" }),
+    getCurrencyRate: async (baseCurrency) => ({
+      baseCurrency,
+      quoteCurrency: "BRL",
+      rateMicros: 5_430_000,
+      rateFormatted: "5,43",
+      source: "test",
+      date: "2026-08-27",
+    }),
+    recordSale: async (input) => ({
+      saleId: "sale-1",
+      realAmountMinor: input.realAmountMinor,
+      originalAmountMinor: input.originalAmountMinor,
+      currency: input.currency,
+      exchangeRateMicros: input.exchangeRateMicros,
+      soldAt: input.soldAt ?? "2026-08-27T12:00:00",
+    }),
     ...overrides,
   };
 }
@@ -279,6 +296,141 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar cotação" }));
 
     await waitFor(() => expect(recordPveBagQuote).toHaveBeenCalledWith(1350));
+  });
+
+  it("opens the reports page and displays KPIs, charts, financial summary and ranking", async () => {
+    const getReportsOverview = vi.fn(async () => ({
+      state: "ready" as const,
+      kpis: {
+        monthlySalesMinor: 84200,
+        salesChangePercent: 18,
+        monthlyFarmGold: 18420000,
+        farmGoldChangePercent: 12,
+        allTimeFarmGold: 126850000,
+        dailyAverageGold: 614000,
+        monthlyPveBagsSold: 250,
+        pveBagsChangePercent: 25,
+      },
+      dailyEvolution: [
+        { day: 26, activityDate: "2026-08-26", gold: 7000, runs: 5 },
+      ],
+      monthlyComparison: {
+        previousMonthName: "Mês passado",
+        previousMonthGold: 16460000,
+        currentMonthName: "Mês atual",
+        currentMonthGold: 18420000,
+        growthPercent: 12,
+      },
+      cumulativeHistory: [
+        { monthLabel: "ago/26", monthKey: "2026-08", cumulativeGold: 126850000 },
+      ],
+      financialSummary: {
+        salesAmountMinor: 84200,
+        itemsSoldCount: 94,
+        goldConvertedTotal: 18420000,
+        averageTicketMinor: 896,
+      },
+      recentSales: [
+        { id: "sale-1", itemName: "Saco de Cristal (PvE)", quantity: 10, amountMinor: 3500, currency: "BRL", soldAt: "2026-08-27T14:32:00" },
+      ],
+      monthlyTarget: {
+        targetGold: 25000000,
+        currentGold: 18420000,
+        percentage: 74,
+        remainingGold: 6580000,
+        daysRemaining: 5,
+      },
+      topCharacters: [
+        { rank: 1, characterId: "char-1", characterName: "Sentry1", className: "Druida", goldEarned: 4920000 },
+      ],
+    }));
+
+    const gateway = createGateway({ getReportsOverview });
+    render(<App gateway={gateway} />);
+
+    const reportButtons = await screen.findAllByRole("button", { name: "Relatórios" });
+    fireEvent.click(reportButtons[0]);
+    expect(await screen.findByTestId("reports-page")).toBeInTheDocument();
+    expect(screen.getByText("Vendido no mês")).toBeInTheDocument();
+    expect(screen.getByText("Farm do mês")).toBeInTheDocument();
+    expect(screen.getAllByText("18.420.000").length).toBeGreaterThan(0);
+    expect(screen.getByText("126.850.000")).toBeInTheDocument();
+    expect(screen.getByText("Resumo financeiro")).toBeInTheDocument();
+    expect(screen.getByText("Sentry1")).toBeInTheDocument();
+    expect(screen.getByText("Saco de Cristal (PvE)")).toBeInTheDocument();
+  });
+
+  it("opens Nova Venda modal, converts USD to BRL and records a sale", async () => {
+    const recordSale = vi.fn().mockResolvedValue({
+      saleId: "sale-123",
+      realAmountMinor: 13575,
+      originalAmountMinor: 2500,
+      currency: "USD",
+      exchangeRateMicros: 5_430_000,
+      soldAt: "2026-08-27T12:00:00",
+    });
+
+    const gateway = createGateway({
+      getToday: async () => ({
+        state: "ready",
+        activityDate: "2026-08-27",
+        selectedDungeons: 10,
+        estimatedGold: 310000,
+        estimatedPveBags: 250,
+        estimatedPveBagMarketValue: 250000,
+      }),
+      getTodayActivity: async () => ({
+        state: "ready",
+        runsCompleted: 10,
+        towerCompleted: 0,
+        towerTotal: 0,
+        recentDrops: [],
+        monthlyGold: [],
+        monthlyGoldTotal: 1000000,
+        earnedGoldToday: 310000,
+        todaySalesMinor: 13575,
+      }),
+      recordSale,
+    });
+
+    render(<App gateway={gateway} />);
+
+    expect(await screen.findByText("Ouro ganho")).toBeInTheDocument();
+    expect(screen.getByText("Vendido hoje")).toBeInTheDocument();
+    expect(screen.getByText("R$ 135,75")).toBeInTheDocument();
+
+    const saleButton = await screen.findByRole("button", { name: /Nova Venda/i });
+    fireEvent.click(saleButton);
+
+    expect(await screen.findByRole("dialog", { name: "Nova venda" })).toBeInTheDocument();
+
+    // Select USD
+    const currencySelect = screen.getByLabelText("Moeda");
+    fireEvent.change(currencySelect, { target: { value: "USD" } });
+
+    // Fill amount 25,00
+    const amountInput = screen.getByLabelText("Valor recebido");
+    fireEvent.change(amountInput, { target: { value: "25,00" } });
+
+    expect(await screen.findByText("R$ 5,43")).toBeInTheDocument();
+    expect(await screen.findByText("R$ 135,75", { selector: ".converted-total-value" })).toBeInTheDocument();
+
+    // Submit sale
+    const submitButton = screen.getByRole("button", { name: "Registrar venda" });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(recordSale).toHaveBeenCalledTimes(1);
+    });
+
+    expect(recordSale).toHaveBeenCalledWith(
+      expect.objectContaining({
+        saleType: "gold",
+        currency: "USD",
+        originalAmountMinor: 2500,
+        realAmountMinor: 13575,
+      }),
+    );
   });
 });
 

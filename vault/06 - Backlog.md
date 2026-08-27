@@ -49,9 +49,9 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 - [x] **HIS-001** Histórico por data, conta, personagem e atividade.
 - [ ] **HIS-002** Edição auditável de sessões e lançamentos.
 - [ ] **INV-001** Catálogo de itens e ledger de inventário.
-- [ ] **FIN-001** Vendas e ledger financeiro em gold/moeda.
-- [ ] **REP-001** Relatórios de produção, tempo e conclusão.
-- [ ] **REP-002** Relatórios de itens, vendas e conversão.
+- [x] **FIN-001** Vendas e ledger financeiro em gold/moeda.
+- [x] **REP-001** Relatórios de produção, tempo e conclusão.
+- [x] **REP-002** Relatórios de itens, vendas e conversão.
 - [ ] **EXP-001** Exportação CSV/JSON com versão de formato.
 - [ ] **BKP-001** Tela de backups, restauração e diagnóstico.
 - [ ] **CFG-001** Configurações de timezone, idioma, tema e diretório de backup.

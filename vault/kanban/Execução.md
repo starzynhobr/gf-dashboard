@@ -13,7 +13,7 @@ tipo: kanban
 
 ## Em andamento
 
-- [ ] Etapa 9 — Movimentos de inventário, vendas e ajustes explícitos (Histórico com filtros e breakdown diário concluído)
+- [ ] Etapa 10 — Exportação de relatórios CSV/JSON (`EXP-001`)
 - [ ] Etapas 5–6 — Fechar responsividade, shell sem moldura, virtualização e fallback textual do gráfico
 
 ## Bloqueado
@@ -21,6 +21,10 @@ tipo: kanban
 - [ ] GME-009 — Linha cortada sobre o reset da Torre
 
 ## Concluído
+
+- [x] Etapa 10 — Registro de Vendas multimoeda (`FIN-001`), cotações Frankfurter API e atualização do Resumo do Dia ("Ouro ganho" + "Vendido hoje")
+- [x] Etapa 10 — Relatórios e Analytics (`REP-001`, `REP-002`) conforme imagem de referência com KPIs, gráficos Recharts, resumo financeiro e ranking
+- [x] Etapa 9 — Histórico de farm (`HIS-001`), cotação rápida do Saco PvE (`DOM-008`, `UI-012`) e estimativa dinâmica no card de ouro
 
 - [x] FND-001 — Inicializar Git, pyproject, lockfile e estrutura Python
 - [x] FND-002 — Configurar qualidade e comandos Python/TypeScript
