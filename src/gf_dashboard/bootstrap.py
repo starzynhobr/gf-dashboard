@@ -6,6 +6,7 @@ import sys
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QApplication
 
+from gf_dashboard import __version__
 from gf_dashboard.desktop.window import MainWindow
 from gf_dashboard.infrastructure.persistence import (
     PersistenceError,
@@ -24,7 +25,7 @@ def configure_logging() -> None:
 def create_application(argv: list[str] | None = None) -> QApplication:
     QCoreApplication.setOrganizationName("STZ Labs")
     QCoreApplication.setApplicationName("GF Farmer")
-    QCoreApplication.setApplicationVersion("0.1.0")
+    QCoreApplication.setApplicationVersion(__version__)
     return QApplication(argv if argv is not None else sys.argv)
 
 

@@ -1,6 +1,7 @@
 import { Bell, Calculator, CalendarBlank, ChartBar, CheckCircle, Clock, Coins, Crown, GearSix, House, Moon, Play, Plus, Receipt, ShieldChevron, Sparkle, Stop, Sword, Timer, Trophy, UserPlus, UsersThree } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import packageInfo from "../../package.json";
 import brandMark from "../assets/gf-farmer-mark.png";
 import type { AppGateway, CharacterDayResult, DashboardLayoutResult, DashboardModuleKey, ExpenseRegistrationInput, ManagementOverviewResult, TodayActivityResult, TodayCharactersResult, TodayResult, TowerRegistrationInput, WorkRoutineResult } from "../gateway/AppGateway";
 import { CharacterDayDialog } from "./CharacterDayDialog";
@@ -477,7 +478,7 @@ export function App({ gateway }: { gateway: AppGateway }) {
         <button className={page === "history" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={openHistory}><CalendarBlank size={22} weight="duotone" />Histórico</button>
         <button className={page === "settings" ? "nav-item nav-item--active" : "nav-item"} type="button" onClick={() => setPage("settings")}><GearSix size={22} weight="duotone" />Configurações</button>
       </nav>
-      <Panel className="account-card"><div className="account-avatar">GF</div><div><strong>Workspace local</strong><span>Dados no SQLite</span></div><small data-testid="bridge-status"><i />{bridgeState === "ready" ? "Online" : bridgeState === "error" ? "Offline" : "Conectando"}</small></Panel>
+      <Panel className="account-card"><div className="account-avatar">GF</div><div><strong>Workspace local</strong><span>Dados no SQLite</span><span className="account-version">Versão {packageInfo.version}</span></div><small data-testid="bridge-status"><i />{bridgeState === "ready" ? "Online" : bridgeState === "error" ? "Offline" : "Conectando"}</small></Panel>
     </aside>
 
     <div className="workspace">

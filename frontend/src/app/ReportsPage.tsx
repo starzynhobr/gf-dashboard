@@ -214,13 +214,13 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
             <span className="kpi-label">Vendido no mês</span>
             <strong className="kpi-value">{currencyFormat.format(kpis.monthlySalesMinor / 100)}</strong>
             <span className="kpi-subtext">
-              Período anterior: {currencyFormat.format((kpis.previousSalesMinor ?? 0) / 100)}
+              Mês passado (completo): {currencyFormat.format((kpis.previousSalesMinor ?? 0) / 100)}
             </span>
             {kpis.salesChangeStatus === "no_baseline" ? (
               <span className="kpi-badge kpi-badge--neutral">Sem base comparável</span>
             ) : kpis.salesChangePercent !== null ? (
               <span className={`kpi-badge ${kpis.salesChangePercent >= 0 ? "kpi-badge--positive" : "kpi-badge--negative"}`}>
-                {kpis.salesChangePercent >= 0 ? "+" : ""}{kpis.salesChangePercent}% vs mesmo período
+                {kpis.salesChangePercent >= 0 ? "+" : ""}{kpis.salesChangePercent}% vs mês passado
               </span>
             ) : (
               <span className="kpi-badge kpi-badge--neutral">Sem movimentação</span>
@@ -237,13 +237,13 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
             <span className="kpi-label">Farm do mês</span>
             <strong className="kpi-value">{numberFormat.format(kpis.monthlyFarmGold)}</strong>
             <span className="kpi-subtext">
-              Período anterior: {numberFormat.format(kpis.previousFarmGold ?? 0)} gold
+              Mês passado (completo): {numberFormat.format(kpis.previousFarmGold ?? 0)} gold
             </span>
             {kpis.farmGoldChangeStatus === "no_baseline" ? (
               <span className="kpi-badge kpi-badge--neutral">Sem base comparável</span>
             ) : kpis.farmGoldChangePercent !== null ? (
               <span className={`kpi-badge ${kpis.farmGoldChangePercent >= 0 ? "kpi-badge--positive" : "kpi-badge--negative"}`}>
-                {kpis.farmGoldChangePercent >= 0 ? "+" : ""}{kpis.farmGoldChangePercent}% vs mesmo período
+                {kpis.farmGoldChangePercent >= 0 ? "+" : ""}{kpis.farmGoldChangePercent}% vs mês passado
               </span>
             ) : (
               <span className="kpi-badge kpi-badge--neutral">Sem movimentação</span>
@@ -284,13 +284,13 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
             <span className="kpi-label">Sacos PvE ganhos</span>
             <strong className="kpi-value">{numberFormat.format(kpis.monthlyPveBagsEarned)}</strong>
             <span className="kpi-subtext">
-              Período anterior: {numberFormat.format(kpis.previousPveBagsEarned ?? 0)} sacos
+              Mês passado (completo): {numberFormat.format(kpis.previousPveBagsEarned ?? 0)} sacos
             </span>
             {kpis.pveBagsEarnedChangeStatus === "no_baseline" ? (
               <span className="kpi-badge kpi-badge--neutral">Sem base comparável</span>
             ) : kpis.pveBagsEarnedChangePercent !== null ? (
               <span className={`kpi-badge ${kpis.pveBagsEarnedChangePercent >= 0 ? "kpi-badge--positive" : "kpi-badge--negative"}`}>
-                {kpis.pveBagsEarnedChangePercent >= 0 ? "+" : ""}{kpis.pveBagsEarnedChangePercent}% vs mesmo período
+                {kpis.pveBagsEarnedChangePercent >= 0 ? "+" : ""}{kpis.pveBagsEarnedChangePercent}% vs mês passado
               </span>
             ) : (
               <span className="kpi-badge kpi-badge--neutral">Sem movimentação</span>
@@ -353,7 +353,7 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
           <div className="chart-heading">
             <div>
               <h2>Comparativo de farm</h2>
-              <span className="chart-sub">Gold farmado (período equivalente)</span>
+              <span className="chart-sub">Mês atual até o dia indicado vs mês passado completo</span>
             </div>
           </div>
           <div className="comparative-body">
@@ -660,7 +660,7 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
       </section>
       <section className="panel routine-history-panel" aria-labelledby="routine-history-title">
         <div className="panel-heading">
-          <div><h2 id="routine-history-title">Tempo de rotina</h2><span className="chart-sub">Sessões encerradas, prontas para conferência e comparação</span></div>
+          <div><h2 id="routine-history-title">Tempo de rotina</h2><span className="chart-sub">Sessões com 5 min ativos ou mais; pausas não contam</span></div>
           <Timer size={20} className="text-indigo-300" weight="duotone" />
         </div>
         <div className="routine-history-summary">
@@ -668,7 +668,7 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
           <div><span>Esta semana</span><strong>{formatDuration(workRoutineHistory.weekSeconds)}</strong><small className={routineWeekChange >= 0 ? "text-emerald-400" : "text-rose-300"}>{routineWeekChange >= 0 ? "+" : ""}{routineWeekChange}% vs semana passada</small></div>
           <div><span>Média por dia ativo</span><strong>{formatDuration(routineDailyAverage)}</strong><small>{workRoutineHistory.activeDaysInMonth} dias com rotina</small></div>
         </div>
-        {workRoutineHistory.recentSessions.length ? <div className="routine-history-table-wrap"><table className="routine-history-table"><thead><tr><th>Data</th><th>Início</th><th>Fim</th><th>Duração</th></tr></thead><tbody>{workRoutineHistory.recentSessions.map((session) => <tr key={session.id}><td>{formatShortDate(session.finishedAt).slice(0, 10)}</td><td>{formatShortDate(session.startedAt).slice(-5)}</td><td>{formatShortDate(session.finishedAt).slice(-5)}</td><td><strong>{formatDuration(session.elapsedSeconds)}</strong></td></tr>)}</tbody></table></div> : <div className="routine-history-empty">Encerre uma rotina para ela aparecer neste histórico.</div>}
+        {workRoutineHistory.recentSessions.length ? <div className="routine-history-table-wrap"><table className="routine-history-table"><thead><tr><th>Data</th><th>Início</th><th>Fim</th><th>Duração</th></tr></thead><tbody>{workRoutineHistory.recentSessions.map((session) => <tr key={session.id}><td>{formatShortDate(session.finishedAt).slice(0, 10)}</td><td>{formatShortDate(session.startedAt).slice(-5)}</td><td>{formatShortDate(session.finishedAt).slice(-5)}</td><td><strong>{formatDuration(session.elapsedSeconds)}</strong></td></tr>)}</tbody></table></div> : <div className="routine-history-empty">Encerre uma rotina com pelo menos 5 min ativos para ela aparecer aqui.</div>}
       </section>
       {targetDialogOpen && <div className="dialog-backdrop" role="presentation" onMouseDown={() => !targetSaving && setTargetDialogOpen(false)}>
         <section className="edit-dialog target-dialog" role="dialog" aria-modal="true" aria-labelledby="monthly-target-title" onMouseDown={(event) => event.stopPropagation()}>

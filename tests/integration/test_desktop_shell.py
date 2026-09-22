@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 from time import perf_counter
@@ -35,6 +36,19 @@ def test_desktop_shell_loads_built_react_and_connects_bridge(qtbot: QtBot) -> No
         return bool(observed and "Online" in str(observed[-1]))
 
     qtbot.waitUntil(bridge_is_ready, timeout=10_000)
+
+    toolbar_heights: list[Any] = []
+
+    def action_buttons_have_uniform_height() -> bool:
+        window.page.runJavaScript(
+            "JSON.stringify(Array.from(document.querySelectorAll('.page-title-actions > button'))"
+            ".map((button) => button.getBoundingClientRect().height))",
+            toolbar_heights.append,
+        )
+        return bool(toolbar_heights)
+
+    qtbot.waitUntil(action_buttons_have_uniform_height, timeout=5_000)
+    assert json.loads(toolbar_heights[-1]) == [50] * 6
 
 
 @pytest.mark.integration

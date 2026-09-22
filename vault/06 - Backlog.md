@@ -1,7 +1,7 @@
 ---
 tipo: backlog
 status: ativo
-atualizado_em: 2026-08-30
+atualizado_em: 2026-09-22
 ---
 
 # Backlog
@@ -46,6 +46,8 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 - [x] **UI-014** Exibir dias/horas restantes, ativar e ajustar VIP por personagem na Home.
 - [x] **UI-015** Calculadora local de valor de gold em BRL com padrão de 8c por 1.000 gold.
 - [x] **UI-016** Abrir calculadora sem consulta de câmbio na bridge; manter taxas indicativas locais e editáveis.
+- [x] **UI-017** Padronizar em 50 px a altura dos botões de ação da Home.
+- [x] **UI-018** Exibir a versão instalada no cartão do workspace local e mantê-la alinhada aos metadados do pacote.
 - [ ] **TST-001** Criar fixture dourada que reproduza os valores do mockup.
 - [x] **TST-002** Criar comparação visual 1680×941 e checklist de fidelidade em `design-qa.md`.
 
@@ -61,10 +63,12 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 - [x] **FIN-003** Histórico, correção por substituição e estorno auditável de despesas manuais.
 - [x] **TIM-001** Sessão de rotina persistida com iniciar, pausar, retomar e encerrar na Home.
 - [x] **TIM-002** Histórico e comparação de tempo de rotina por sessões encerradas.
+- [x] **TIM-003** Exigir 5 minutos ativos para incluir a rotina no histórico e nos relatórios.
 - [x] **REP-003** Ligar atalhos de relatórios aos destinos operacionais e permitir editar a meta mensal.
 - [x] **REP-004** Considerar gold e Sacos PvE valorados pela cotação atual no progresso da meta mensal.
 - [x] **REP-005** Feed de últimas movimentações para conferência rápida nos relatórios.
-- [x] **REP-006** Comparação mensal de relatórios por período equivalente, transparência de valores absolutos e visão histórica de faturamento.
+- [x] **REP-006** Comparação mensal de relatórios, transparência de valores absolutos e visão histórica de faturamento.
+- [x] **REP-007** Comparar mês atual até a data do relatório com o mês anterior completo e identificar os intervalos nos relatórios.
 - [ ] **REP-001** Relatórios de produção, tempo e conclusão (inclui KPIs reais de Sacos PvE ganhos e média por dia farmado no mês; tempo/conclusão detalhados ainda pendentes).
 - [ ] **REP-002** Relatórios de itens, vendas e conversão.
 - [ ] **EXP-001** Exportação CSV/JSON com versão de formato.
@@ -77,6 +81,7 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 - [ ] **GME-010** Modelar Fama dos Mercados como saldo estimado calibrável, catálogo de missões e consumo de dungeon após confirmação dos custos.
 - [x] **PKG-001** Spike PyInstaller + Inno Setup com Qt WebEngine, WebChannel e `frontend/dist`.
 - [x] **PKG-002** Instalador/atualizador pessoal que preserva o diretório de dados.
+- [x] **PKG-003** Impedir coleta de `icuuc.dll` incompatível pelo PyInstaller e executar o pacote antes de gerar o instalador.
 - [ ] **A11Y-001** Navegação por teclado, foco, contraste e escala do Windows.
 - [ ] **PERF-001** Medir abertura, consultas e memória com base grande.
 

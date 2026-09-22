@@ -27,6 +27,7 @@ input, select { font: inherit; }
 .account-avatar, .profile-dot { display: grid; place-items: center; border: 1px solid rgba(246,200,92,.55); color: #f6ca67; background: #172c3b; font-weight: 700; }
 .account-avatar { width: 50px; height: 50px; border-radius: 50%; }
 .account-card strong { font-size: 13px; }
+.account-card .account-version { margin-top: 3px; color: #70869a; font-size: 10px; }
 .account-card small { grid-column: 1 / -1; color: #8da0b1; font-size: 12px; }
 .account-card small i { display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: #32bd69; }
 .workspace { grid-column: 2; min-width: 0; }
@@ -220,6 +221,7 @@ input, select { font: inherit; }
 .page-title-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 16px; }
 .page-title-row h1 { margin: 0; }
 .page-title-actions { display: flex; align-items: center; gap: 10px; }
+.page-title-actions > button { height: 50px; min-height: 50px; }
 .price-action { color: #f1c55b; border-color: rgba(241,197,91,.25); }
 .price-action:hover:not(:disabled) { border-color: rgba(241,197,91,.45); background: rgba(241,197,91,.08); color: #ffe394; }
 .tower-action { min-width: 154px; }

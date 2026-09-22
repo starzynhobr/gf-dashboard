@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gf-dashboard-controller"
-version = "0.1.0"
+version = "0.1.2"
 description = "Dashboard local para controle de farm em Grand Fantasia"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"

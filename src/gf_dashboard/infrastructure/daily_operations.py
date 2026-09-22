@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import cast
 from uuid import uuid4
 
+from gf_dashboard.application.work_routines import MIN_RECORDED_ROUTINE_SECONDS
 from gf_dashboard.infrastructure.persistence import SqliteDatabase
 
 
@@ -498,10 +499,12 @@ class SqliteDailyOperations:
                     current["startedAt"] = timestamp
             else:
                 elapsed = int(cast(int, current["elapsedSeconds"]))
+                deleted_at = None if elapsed >= MIN_RECORDED_ROUTINE_SECONDS else timestamp
                 connection.execute(
                     "UPDATE work_routine_sessions SET status = 'completed', paused_at = NULL, "
-                    "finished_at = ?, accumulated_seconds = ?, updated_at = ? WHERE id = ?",
-                    (timestamp, elapsed, timestamp, current["id"]),
+                    "finished_at = ?, accumulated_seconds = ?, deleted_at = ?, updated_at = ? "
+                    "WHERE id = ?",
+                    (timestamp, elapsed, deleted_at, timestamp, current["id"]),
                 )
                 current["status"] = "completed"
                 current["finishedAt"] = timestamp

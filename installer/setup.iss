@@ -2,7 +2,7 @@
 ; Desenvolvido para compilação com Inno Setup 6 (ISCC.exe)
 
 #define MyAppName "GF Farmer"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.1.2"
 #define MyAppPublisher "STZ Labs"
 #define MyAppExeName "GF Farmer.exe"
 #define MyAppId "{{B8E17A63-84B2-4E9A-8F52-2FD5E48BE879}"
@@ -42,6 +42,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "..\dist\GF Farmer\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+; Remove a DLL incompatível que pode ter sido deixada pela instalação 0.1.1.
+Type: files; Name: "{app}\_internal\icuuc.dll"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

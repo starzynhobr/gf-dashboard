@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from uuid import UUID
 
@@ -53,6 +53,16 @@ def test_manual_expenses_and_work_routine_are_persisted_as_operational_facts(
     started = operations.start_work_routine(str(workspace.id))
     paused = operations.pause_work_routine(str(workspace.id))
     resumed = operations.resume_work_routine(str(workspace.id))
+    connection = database.connect()
+    try:
+        # Keep this legacy lifecycle test above the minimum accepted duration.
+        connection.execute(
+            "UPDATE work_routine_sessions SET started_at = ? WHERE id = ?",
+            ((datetime.now(UTC) - timedelta(minutes=5)).isoformat(), started["id"]),
+        )
+        connection.commit()
+    finally:
+        connection.close()
     stopped = operations.stop_work_routine(str(workspace.id))
 
     assert expense_id
@@ -116,6 +126,84 @@ def test_manual_expenses_and_work_routine_are_persisted_as_operational_facts(
         )
     finally:
         connection.close()
+
+
+@pytest.mark.integration
+def test_work_routine_history_requires_five_active_minutes(tmp_path: Path) -> None:
+    database = SqliteDatabase(tmp_path / "routine-minimum.sqlite3", test_temporary_root=tmp_path)
+    MigrationRunner(database, load_migrations(), app_version="0.1.0-test").migrate()
+    _, ids, clock = create_memory_context()
+    workspace = WorkspaceService(SqliteUnitOfWork(database), ids, clock).create_workspace("Pessoal")
+    operations = SqliteDailyOperations(database)
+    workspace_id = str(workspace.id)
+
+    short = operations.start_work_routine(workspace_id)
+    connection = database.connect()
+    try:
+        connection.execute(
+            "UPDATE work_routine_sessions SET started_at = ? WHERE id = ?",
+            ((datetime.now(UTC) - timedelta(minutes=4)).isoformat(), short["id"]),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    short_stopped = operations.stop_work_routine(workspace_id)
+    assert short_stopped["elapsedSeconds"] < 300
+
+    valid = operations.start_work_routine(workspace_id)
+    connection = database.connect()
+    try:
+        connection.execute(
+            "UPDATE work_routine_sessions SET started_at = ? WHERE id = ?",
+            ((datetime.now(UTC) - timedelta(seconds=300)).isoformat(), valid["id"]),
+        )
+        # Existing short sessions remain stored but must disappear from reports too.
+        now = datetime.now(UTC).isoformat()
+        connection.execute(
+            """INSERT INTO work_routine_sessions
+            (id, workspace_id, status, started_at, finished_at, accumulated_seconds,
+             created_at, updated_at)
+            VALUES (?, ?, 'completed', ?, ?, 60, ?, ?)""",
+            (
+                "legacy-short-routine",
+                workspace_id,
+                now,
+                now,
+                now,
+                now,
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    valid_stopped = operations.stop_work_routine(workspace_id)
+    assert valid_stopped["elapsedSeconds"] >= 300
+
+    connection = database.connect(read_only=True)
+    try:
+        rows = connection.execute(
+            "SELECT id, deleted_at FROM work_routine_sessions ORDER BY created_at"
+        ).fetchall()
+        assert rows[0]["id"] == short["id"]
+        assert rows[0]["deleted_at"] is not None
+        assert rows[1]["id"] == valid["id"]
+        assert rows[1]["deleted_at"] is None
+    finally:
+        connection.close()
+
+    today = datetime.now(UTC).date()
+    reports = SqliteDashboardReader(database).reports_overview_for_default_workspace(today)
+    assert reports is not None
+    routine_history = reports.work_routine_history
+    assert routine_history.month_session_count == 1
+    assert len(routine_history.recent_sessions) == 1
+    assert routine_history.recent_sessions[0].id == valid["id"]
+    assert routine_history.month_seconds == valid_stopped["elapsedSeconds"]
+
+    history = SqliteDashboardReader(database).history_overview_for_default_workspace(today, today)
+    assert history is not None
+    assert len(history) == 1
+    assert history[0].routine_duration_seconds == valid_stopped["elapsedSeconds"]
 
 
 @pytest.mark.integration
@@ -1024,7 +1112,9 @@ def test_currency_rates_and_sales_flow(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
-def test_reports_monthly_comparison_equivalent_period_and_sales_history(tmp_path: Path) -> None:
+def test_reports_month_to_date_versus_previous_full_month_and_sales_history(
+    tmp_path: Path,
+) -> None:
     database = SqliteDatabase(tmp_path / "farm.sqlite3", test_temporary_root=tmp_path)
     MigrationRunner(database, load_migrations(), app_version="0.1.0-test").migrate()
     _, ids, clock = create_memory_context()
@@ -1080,8 +1170,12 @@ def test_reports_monthly_comparison_equivalent_period_and_sales_history(tmp_path
             ('fs-aug-late', ?, 'activity', ?, 'completed', '2026-08-20',
              1000000, 20, 10, '2026-08-20T12:00:00Z', '2026-08-20T12:00:00Z'),
             ('fs-sep-early', ?, 'activity', ?, 'completed', '2026-09-02',
-             600000, 12, 6, '2026-09-02T12:00:00Z', '2026-09-02T12:00:00Z')""",
+             600000, 12, 6, '2026-09-02T12:00:00Z', '2026-09-02T12:00:00Z'),
+            ('fs-sep-late', ?, 'activity', ?, 'completed', '2026-09-15',
+             700000, 14, 7, '2026-09-15T12:00:00Z', '2026-09-15T12:00:00Z')""",
             (
+                str(workspace.id),
+                char["id"],
                 str(workspace.id),
                 char["id"],
                 str(workspace.id),
@@ -1112,7 +1206,7 @@ def test_reports_monthly_comparison_equivalent_period_and_sales_history(tmp_path
     finally:
         connection.close()
 
-    # Query 1: Partial month (2026-09-07) -> compares 1-7 Sept vs 1-7 Aug
+    # Query 1: Partial month (2026-09-07) -> compares current MTD vs all of August.
     res = json.loads(
         bridge.invoke(
             json.dumps(
@@ -1127,27 +1221,30 @@ def test_reports_monthly_comparison_equivalent_period_and_sales_history(tmp_path
     )["data"]
 
     kpis = res["kpis"]
-    # Sales: Sept (1-7) has 15000 minor; Aug (1-7) has 10000 minor (not 40000!)
+    # Sales: Sept (1-7) has 15000 minor; all of August has 40000 minor.
     assert kpis["monthlySalesMinor"] == 15000
-    assert kpis["previousSalesMinor"] == 10000
-    assert kpis["salesChangePercent"] == 50  # +50%
+    assert kpis["previousSalesMinor"] == 40000
+    assert kpis["salesChangePercent"] == -62
     assert kpis["salesChangeStatus"] == "valid"
 
-    # Farm: Sept (1-7) has 600_000 gold; Aug (1-7) has 500_000 gold (not 1_500_000!)
+    # Farm: Sept (1-7) has 600_000 gold; all of August has 1_500_000 gold.
     assert kpis["monthlyFarmGold"] == 600000
-    assert kpis["previousFarmGold"] == 500000
-    assert kpis["farmGoldChangePercent"] == 20  # +20%
+    assert kpis["previousFarmGold"] == 1500000
+    assert kpis["farmGoldChangePercent"] == -60
     assert kpis["farmGoldChangeStatus"] == "valid"
+    assert kpis["monthlyPveBagsEarned"] == 12
+    assert kpis["previousPveBagsEarned"] == 30
+    assert kpis["pveBagsEarnedChangePercent"] == -60
 
     # Monthly comparison
     comp = res["monthlyComparison"]
     assert comp["isPartial"] is True
-    assert comp["growthPercent"] == 20
+    assert comp["growthPercent"] == -60
     assert comp["growthStatus"] == "valid"
     assert comp["currentMonthName"] == "Set (1-7)"
-    assert comp["previousMonthName"] == "Ago (1-7)"
+    assert comp["previousMonthName"] == "Ago/26"
     assert comp["currentPeriodLabel"] == "1 - 7 de setembro"
-    assert comp["previousPeriodLabel"] == "1 - 7 de agosto"
+    assert comp["previousPeriodLabel"] == "Agosto de 2026 (mês completo)"
 
     # Monthly sales history: chronological order, proper labels and isPartial flag
     sales_hist = res["monthlySalesHistory"]
@@ -1181,6 +1278,29 @@ def test_reports_monthly_comparison_equivalent_period_and_sales_history(tmp_path
     assert res_aug["kpis"]["salesChangeStatus"] == "no_baseline"
     assert res_aug["monthlyComparison"]["growthStatus"] == "no_baseline"
 
+    # Query 3: Activity on different days still compares the month totals.
+    res_sep_late = json.loads(
+        bridge.invoke(
+            json.dumps(
+                {
+                    "version": 1,
+                    "requestId": "rep-sep-late",
+                    "method": "reports.overview",
+                    "payload": {"referenceDate": "2026-09-21"},
+                }
+            )
+        )
+    )["data"]
+    assert res_sep_late["kpis"]["monthlyFarmGold"] == 1300000
+    assert res_sep_late["kpis"]["previousFarmGold"] == 1500000
+    assert res_sep_late["kpis"]["monthlyPveBagsEarned"] == 26
+    assert res_sep_late["kpis"]["previousPveBagsEarned"] == 30
+    assert res_sep_late["monthlyComparison"]["growthPercent"] == -13
+    assert res_sep_late["monthlyComparison"]["currentPeriodLabel"] == "1 - 21 de setembro"
+    assert (
+        res_sep_late["monthlyComparison"]["previousPeriodLabel"] == "Agosto de 2026 (mês completo)"
+    )
+
     # Query 3: Closed month vs closed month (2026-08-31 vs July 1-31)
     res_closed = json.loads(
         bridge.invoke(
@@ -1212,4 +1332,4 @@ def test_reports_monthly_comparison_equivalent_period_and_sales_history(tmp_path
         )
     )["data"]
     assert res_wrap["monthlyComparison"]["currentPeriodLabel"] == "1 - 5 de janeiro"
-    assert res_wrap["monthlyComparison"]["previousPeriodLabel"] == "1 - 5 de dezembro"
+    assert res_wrap["monthlyComparison"]["previousPeriodLabel"] == "Dezembro de 2026 (mês completo)"

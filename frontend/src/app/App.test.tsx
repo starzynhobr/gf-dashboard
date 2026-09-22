@@ -93,6 +93,7 @@ describe("App", () => {
     render(<App gateway={gateway} />);
 
     expect(await screen.findByText("Online")).toBeInTheDocument();
+    expect(screen.getByText("Versão 0.1.2")).toBeInTheDocument();
   });
 
   it("refreshes the Home when the app regains focus", async () => {
@@ -727,8 +728,8 @@ describe("App", () => {
         growthPercent: 12,
         growthStatus: "valid" as const,
         isPartial: true,
-        previousPeriodLabel: "1 - 27 jul",
-        currentPeriodLabel: "1 - 27 ago",
+        previousPeriodLabel: "Julho de 2026 (mês completo)",
+        currentPeriodLabel: "1 - 27 de agosto",
       },
       monthlySalesHistory: [
         {
@@ -800,10 +801,11 @@ describe("App", () => {
     expect(screen.getByText("Vendido no mês")).toBeInTheDocument();
     expect(screen.getByText("Farm do mês")).toBeInTheDocument();
     expect(screen.getByText("Sacos PvE ganhos")).toBeInTheDocument();
+    expect(screen.getAllByText(/Mês passado \(completo\):/)).toHaveLength(3);
     expect(screen.getAllByText("18.420.000").length).toBeGreaterThan(0);
-    expect(screen.getByText("+18% vs mesmo período")).toBeInTheDocument();
+    expect(screen.getByText("+18% vs mês passado")).toBeInTheDocument();
     expect(screen.getByText("Comparativo de farm")).toBeInTheDocument();
-    expect(screen.getByText("1 - 27 ago vs 1 - 27 jul")).toBeInTheDocument();
+    expect(screen.getByText("1 - 27 de agosto vs Julho de 2026 (mês completo)")).toBeInTheDocument();
     expect(screen.getByText("Últimas movimentações")).toBeInTheDocument();
     expect(screen.getByText("Dimensão Distorcida")).toBeInTheDocument();
     expect(screen.getByText("Resumo financeiro")).toBeInTheDocument();
@@ -850,8 +852,8 @@ describe("App", () => {
         growthPercent: null,
         growthStatus: "no_baseline" as const,
         isPartial: true,
-        previousPeriodLabel: "1 - 5 jul",
-        currentPeriodLabel: "1 - 5 ago",
+        previousPeriodLabel: "Julho de 2026 (mês completo)",
+        currentPeriodLabel: "1 - 5 de agosto",
       },
       monthlySalesHistory: [],
       cumulativeHistory: [],

@@ -23,16 +23,21 @@ tipo: kanban
 
 ## Concluído
 
+- [x] PKG-003 — Excluir ICU incompatível do pacote e validar a inicialização do executável congelado antes do instalador
 - [x] PKG-001 e PKG-002 — Empacotamento Windows com PyInstaller, Qt WebEngine, assets React e instalador oficial Inno Setup 6 que preserva `%LOCALAPPDATA%`
 - [x] FIN-001 — Registro de vendas multimoeda idempotente, com valor original, conversão BRL calculada no backend e snapshot da origem da cotação
 - [x] FIN-002 — Despesa manual em gold no ledger financeiro e detalhamento mensal de VIP, Torre e outras despesas
 - [x] FIN-003 — Histórico, correção por substituição e estorno auditável de despesas manuais
 - [x] TIM-001 — Sessão de rotina persistida na Home com iniciar, pausar, retomar e encerrar
 - [x] TIM-002 — Histórico e comparação de tempo de rotina nos relatórios
+- [x] TIM-003 — Excluir sessões com menos de 5 minutos ativos do histórico e dos relatórios
 - [x] REP-004, UI-015 — Meta mensal por gold equivalente (gold + Sacos PvE) e calculadora local de BRL
 - [x] UI-016 — Abertura imediata da calculadora sem consulta de câmbio bloqueante; taxas indicativas editáveis
+- [x] UI-017 — Altura uniforme de 50 px nos botões de ação da Home
+- [x] UI-018 — Exibir versão do aplicativo no cartão do workspace local e conferir consistência com o instalador
 - [x] REP-005 — Feed de últimas movimentações nos relatórios para conferência rápida
-- [x] REP-006 — Comparação mensal por período equivalente e histórico de vendas nos relatórios
+- [x] REP-006 — Comparação mensal e histórico de vendas nos relatórios
+- [x] REP-007 — Comparar acumulado atual com mês anterior completo, sem exigir dias coincidentes
 - [x] DOM-009, UI-013 — Diária operacional por personagem/data com marcação rápida na Home, sem impacto financeiro
 - [x] CFG-004, REP-003 — Meta mensal persistida e atalhos de relatórios com destinos reais
 - [x] DOM-010, UI-014 — VIP por personagem com dias/horas restantes, ajuste de validade e despesa única em gold

@@ -9,9 +9,12 @@ Executa:
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -47,6 +50,29 @@ def step(message: str) -> None:
     print(f"\n{'=' * 70}\n[BUILD] {message}\n{'=' * 70}")
 
 
+def get_release_version() -> str:
+    """Verifica e retorna a versão comum do projeto, frontend e instalador."""
+    with (PROJECT_ROOT / "pyproject.toml").open("rb") as project_file:
+        backend_version = tomllib.load(project_file)["project"]["version"]
+    with (PROJECT_ROOT / "frontend" / "package.json").open(encoding="utf-8") as package_file:
+        frontend_version = json.load(package_file)["version"]
+    init_source = (PROJECT_ROOT / "src" / "gf_dashboard" / "__init__.py").read_text(
+        encoding="utf-8"
+    )
+    init_match = re.search(r'^__version__ = ["\']([^"\']+)["\']$', init_source, re.MULTILINE)
+    setup_source = (PROJECT_ROOT / "installer" / "setup.iss").read_text(encoding="utf-8")
+    setup_match = re.search(r'^#define MyAppVersion "([^"]+)"$', setup_source, re.MULTILINE)
+    versions = {"pyproject.toml": backend_version, "frontend/package.json": frontend_version}
+    if init_match is None or setup_match is None:
+        raise SystemExit("Não foi possível ler a versão do backend ou do instalador.")
+    versions["gf_dashboard.__version__"] = init_match.group(1)
+    versions["installer/setup.iss"] = setup_match.group(1)
+    if len(set(versions.values())) != 1:
+        details = ", ".join(f"{name}={version}" for name, version in versions.items())
+        raise SystemExit(f"Versões divergentes; atualize todas antes de gerar o pacote: {details}")
+    return backend_version
+
+
 def run_command(cmd: list[str], cwd: Path | None = None) -> None:
     display_cmd = " ".join(f'"{c}"' if " " in c else c for c in cmd)
     print(f">> Executando: {display_cmd}")
@@ -73,10 +99,12 @@ def generate_icon_if_needed(ico_path: Path) -> None:
         "out.parent.mkdir(parents=True, exist_ok=True)\n"
         "scaled.save(str(out), 'ICO')\n"
     )
-    run_command(["uv", "run", "python", "-c", generate_script])
+    run_command(["uv", "run", "--no-sync", "python", "-c", generate_script])
 
 
 def main() -> None:
+    version = get_release_version()
+    step(f"Versão selecionada: {version}")
     step("1/4: Compilando frontend React com Vite")
     npm_cmd = shutil.which("npm.cmd") or shutil.which("npm") or "npm"
     run_command([npm_cmd, "--prefix", "frontend", "run", "build"])
@@ -87,12 +115,21 @@ def main() -> None:
     print(f"Ícone OK: {ico_path} ({ico_path.stat().st_size:,} bytes)")
 
     step("3/4: Empacotando aplicação desktop com PyInstaller")
-    run_command(["uv", "run", "pyinstaller", "gf_farmer.spec", "--clean", "-y"])
+    run_command(["uv", "run", "--no-sync", "pyinstaller", "gf_farmer.spec", "--clean", "-y"])
 
     bundled_exe = PROJECT_ROOT / "dist" / "GF Farmer" / "GF Farmer.exe"
     if not bundled_exe.is_file():
         raise SystemExit(f"Executável empacotado não encontrado em: {bundled_exe}")
-    print(f"Executável compilado com sucesso: {bundled_exe}")
+    print(f"Executável compilado: {bundled_exe}")
+    step("Verificando inicialização real do executável empacotado")
+    # Importa todo o bootstrap congelado, incluindo QtCore, sem abrir o banco pessoal.
+    smoke = subprocess.run([str(bundled_exe), "--packaging-smoke"], timeout=30, cwd=PROJECT_ROOT)
+    if smoke.returncode != 0:
+        raise SystemExit(
+            f"O executável empacotado falhou ao iniciar (código {smoke.returncode}); "
+            "instalador não gerado."
+        )
+    print("Inicialização do pacote: OK")
 
     step("4/4: Gerando instalador Windows com Inno Setup")
     iscc_path = find_iscc()
@@ -101,7 +138,7 @@ def main() -> None:
     print(f"Script: {iss_script}")
     run_command([str(iscc_path), str(iss_script)])
 
-    installer_output = PROJECT_ROOT / "dist" / "installer" / "GF_Farmer_Setup_v0.1.0.exe"
+    installer_output = PROJECT_ROOT / "dist" / "installer" / f"GF_Farmer_Setup_v{version}.exe"
     if not installer_output.is_file():
         raise SystemExit(f"Instalador final não encontrado em: {installer_output}")
 

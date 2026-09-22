@@ -293,14 +293,14 @@ export class PreviewGateway implements AppGateway {
         { day: 27, activityDate: "2026-08-27", gold: 1280000, runs: 180 },
       ],
       monthlyComparison: {
-        previousMonthName: "Jul (1-27)",
+        previousMonthName: "Jul/26",
         previousMonthGold: 16460000,
         currentMonthName: "Ago (1-27)",
         currentMonthGold: 18420000,
         growthPercent: 12,
         growthStatus: "valid",
         isPartial: true,
-        previousPeriodLabel: "1 - 27 de julho",
+        previousPeriodLabel: "Julho de 2026 (mês completo)",
         currentPeriodLabel: "1 - 27 de agosto",
       },
       cumulativeHistory: [

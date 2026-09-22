@@ -15,7 +15,7 @@ atualizado_em: 2026-08-26
 - **React:** componentes, formulários, módulos, navegação, foco e estados assíncronos com Vitest/Testing Library.
 - **Qt/WebChannel:** shell, origens permitidas, round-trip, erros, ciclo de vida e carregamento do build estático.
 - **Visual:** componentes e telas em viewports/escala fixos.
-- **Empacotamento:** instalação limpa, atualização, execução sem ambiente Python e preservação do banco.
+- **Empacotamento:** instalação limpa, atualização, execução sem ambiente Python e preservação do banco. Antes de gerar o instalador, executar um smoke do próprio `.exe` congelado sem abrir o banco pessoal; verificar que nenhuma DLL ICU incompatível foi coletada.
 - **Recuperação:** falha durante migration, banco inválido, backup ausente e restauração.
 
 ## Fixtures obrigatórias

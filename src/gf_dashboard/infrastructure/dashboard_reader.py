@@ -35,6 +35,7 @@ from gf_dashboard.application.read_models import (
     WorkRoutineHistory,
     WorkRoutineSessionRow,
 )
+from gf_dashboard.application.work_routines import MIN_RECORDED_ROUTINE_SECONDS
 from gf_dashboard.domain.value_objects import EntityId, Gold, WorkspaceId
 from gf_dashboard.infrastructure.persistence import SqliteDatabase
 
@@ -548,6 +549,7 @@ class SqliteDashboardReader:
                     SELECT substr(finished_at, 1, 10) AS activity_date
                     FROM work_routine_sessions
                     WHERE workspace_id = ? AND status = 'completed' AND deleted_at IS NULL
+                      AND accumulated_seconds >= {MIN_RECORDED_ROUTINE_SECONDS}
                       AND finished_at IS NOT NULL
                       {date_where.replace("activity_date", "substr(finished_at, 1, 10)")}"""
                 if not account_id and not character_id
@@ -696,10 +698,11 @@ class SqliteDashboardReader:
                 drops_count = int(drops_query["total_drops"]) if drops_query else 0
 
                 routine_query = connection.execute(
-                    """
+                    f"""
                     SELECT COALESCE(SUM(accumulated_seconds), 0) AS total_seconds
                     FROM work_routine_sessions
                     WHERE workspace_id = ? AND status = 'completed' AND deleted_at IS NULL
+                      AND accumulated_seconds >= {MIN_RECORDED_ROUTINE_SECONDS}
                       AND (
                         substr(finished_at, 1, 10) = ?
                         OR (finished_at IS NULL AND substr(started_at, 1, 10) = ?)
@@ -902,10 +905,11 @@ class SqliteDashboardReader:
             )
 
             routine_query = connection.execute(
-                """
+                f"""
                 SELECT COALESCE(SUM(accumulated_seconds), 0) AS total_seconds
                 FROM work_routine_sessions
                 WHERE workspace_id = ? AND status = 'completed' AND deleted_at IS NULL
+                  AND accumulated_seconds >= {MIN_RECORDED_ROUTINE_SECONDS}
                   AND (
                     substr(finished_at, 1, 10) = ?
                     OR (finished_at IS NULL AND substr(started_at, 1, 10) = ?)
@@ -984,24 +988,16 @@ class SqliteDashboardReader:
                 prev_year = ref_year
                 prev_month = ref_month - 1
 
-            _, days_in_prev_month = calendar.monthrange(prev_year, prev_month)
             prev_month_start = date(prev_year, prev_month, 1)
 
-            # Equivalent period cutoff:
-            # When current month is in progress, compare 1..ref_day of current month
-            # against 1..min(ref_day, days_in_prev_month) of previous month.
-            # When current month is closed, compare full month against full previous month.
+            # Compare month-to-date with the previous full calendar month.
             if is_partial:
                 cur_cutoff_date = reference_date
-                prev_cutoff_day = min(ref_day, days_in_prev_month)
-                prev_cutoff_date = date(prev_year, prev_month, prev_cutoff_day)
             else:
                 cur_cutoff_date = date(ref_year, ref_month, days_in_cur_month)
-                prev_cutoff_day = days_in_prev_month
-                prev_cutoff_date = date(prev_year, prev_month, days_in_prev_month)
 
             cur_cutoff_exclusive = cur_cutoff_date + timedelta(days=1)
-            prev_cutoff_exclusive = prev_cutoff_date + timedelta(days=1)
+            prev_cutoff_exclusive = month_start
 
             month_start_str = month_start.isoformat()
             next_month_start_str = next_month_start.isoformat()
@@ -1046,7 +1042,7 @@ class SqliteDashboardReader:
             cur_month_bags = int(cur_facts["bags"]) if cur_facts else 0
             active_farm_days = int(cur_facts["active_days"]) if cur_facts else 0
 
-            # 2. Previous Month Gold & Bags (equivalent period)
+            # 2. Previous Month Gold & Bags (full calendar month)
             prev_facts = connection.execute(
                 """
                 SELECT COALESCE(SUM(gold), 0) AS gold, COALESCE(SUM(bags), 0) AS bags
@@ -1228,7 +1224,7 @@ class SqliteDashboardReader:
                 for row in daily_rows
             )
 
-            # 6. Monthly Comparison (Comparativo Mensal de Farm no período equivalente)
+            # 6. Monthly Comparison (month-to-date vs previous full month)
             month_names_pt = (
                 "janeiro",
                 "fevereiro",
@@ -1258,19 +1254,17 @@ class SqliteDashboardReader:
                 "Dez",
             )
             if is_partial:
-                previous_period_label = (
-                    f"1 - {prev_cutoff_date.day} de {month_names_pt[prev_month - 1]}"
-                )
                 current_period_label = f"1 - {ref_day} de {month_names_pt[ref_month - 1]}"
-                previous_month_name = f"{month_abbr_pt[prev_month - 1]} (1-{prev_cutoff_date.day})"
                 current_month_name = f"{month_abbr_pt[ref_month - 1]} (1-{ref_day})"
             else:
-                previous_period_label = (
-                    f"{month_names_pt[prev_month - 1].capitalize()} de {prev_year}"
+                current_period_label = (
+                    f"{month_names_pt[ref_month - 1].capitalize()} de {ref_year} (mês completo)"
                 )
-                current_period_label = f"{month_names_pt[ref_month - 1].capitalize()} de {ref_year}"
-                previous_month_name = f"{month_abbr_pt[prev_month - 1]}/{str(prev_year)[2:]}"
                 current_month_name = f"{month_abbr_pt[ref_month - 1]}/{str(ref_year)[2:]}"
+            previous_period_label = (
+                f"{month_names_pt[prev_month - 1].capitalize()} de {prev_year} (mês completo)"
+            )
+            previous_month_name = f"{month_abbr_pt[prev_month - 1]}/{str(prev_year)[2:]}"
 
             monthly_comparison = MonthlyComparison(
                 previous_month_name=previous_month_name,
@@ -1551,7 +1545,7 @@ class SqliteDashboardReader:
             next_week_start = week_start + timedelta(days=7)
             previous_week_start = week_start - timedelta(days=7)
             routine_summary_row = connection.execute(
-                """SELECT
+                f"""SELECT
                     COALESCE(SUM(CASE WHEN finished_at >= ? AND finished_at < ?
                         THEN accumulated_seconds ELSE 0 END), 0) AS month_seconds,
                     COALESCE(SUM(CASE WHEN finished_at >= ? AND finished_at < ?
@@ -1563,7 +1557,8 @@ class SqliteDashboardReader:
                     COUNT(DISTINCT CASE WHEN finished_at >= ? AND finished_at < ?
                         THEN substr(finished_at, 1, 10) END) AS active_days
                 FROM work_routine_sessions
-                WHERE workspace_id = ? AND status = 'completed' AND deleted_at IS NULL""",
+                WHERE workspace_id = ? AND status = 'completed' AND deleted_at IS NULL
+                  AND accumulated_seconds >= {MIN_RECORDED_ROUTINE_SECONDS}""",
                 (
                     month_start_str,
                     next_month_start_str,
@@ -1579,10 +1574,11 @@ class SqliteDashboardReader:
                 ),
             ).fetchone()
             routine_session_rows = connection.execute(
-                """SELECT id, created_at, finished_at, accumulated_seconds
+                f"""SELECT id, created_at, finished_at, accumulated_seconds
                 FROM work_routine_sessions
                 WHERE workspace_id = ? AND status = 'completed'
                   AND finished_at IS NOT NULL AND deleted_at IS NULL
+                  AND accumulated_seconds >= {MIN_RECORDED_ROUTINE_SECONDS}
                 ORDER BY finished_at DESC
                 LIMIT 10""",
                 (workspace_id,),

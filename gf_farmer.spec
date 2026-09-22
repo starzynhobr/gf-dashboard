@@ -43,6 +43,10 @@ a = Analysis(
     noarchive=False,
 )
 
+# Qt6Core imports unversioned ICU symbols from Windows. A different icuuc.dll
+# found on PATH (for example Poppler's ICU 78) breaks the frozen QtCore import.
+a.binaries = [entry for entry in a.binaries if Path(entry[0]).name.lower() != 'icuuc.dll']
+
 pyz = PYZ(a.pure)
 
 exe = EXE(

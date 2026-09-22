@@ -1,7 +1,7 @@
 ---
 tipo: decisoes
 status: ativo
-atualizado_em: 2026-08-30
+atualizado_em: 2026-09-22
 ---
 
 # Decisões
@@ -75,8 +75,10 @@ atualizado_em: 2026-08-30
 | ADR-057 | Aceita | Correção de despesa manual cria substituição auditável | O lançamento anterior deixa de compor totais sem perder antes/depois e vínculo da correção |
 | ADR-058 | Aceita | Relatórios priorizam feed de movimentações em vez de gráfico acumulado redundante | Com poucos pontos históricos, conferência de dungeon, Torre, venda e despesa é mais útil; o card Farm total preserva o acumulado |
 | ADR-059 | Aceita | Tempo de rotina é derivado apenas de sessões encerradas | Comparações usam `accumulated_seconds`; `created_at` preserva o início original diante de pausas e retomadas |
-| ADR-060 | Aceita | Comparação mensal usa período equivalente e percentuais seguros | Meses em andamento comparam até o mesmo dia do mês anterior; quando não há base histórica, exibe 'Sem base comparável'; vendas ganham histórico mensal e recentes |
+| ADR-060 | Substituída por ADR-063 | Comparação mensal usa período equivalente e percentuais seguros | Regra histórica: meses em andamento comparavam até o mesmo dia do mês anterior; substituída pela comparação com o mês anterior completo |
 | ADR-061 | Aceita | VIP usa expiração UTC com precisão de hora e tempo restante informado | A Home mostra dias/horas; ajuste da vigência ativa não duplica a despesa original; a migration preserva datas legadas |
+| ADR-062 | Aceita | Histórico de rotina exige no mínimo cinco minutos ativos | Encerramentos menores que 300 segundos são preservados no banco via soft delete e excluídos dos relatórios, inclusive os já existentes |
+| ADR-063 | Aceita | Comparação mensal usa o acumulado atual contra o mês anterior completo | O mês atual vai do dia 1 até a data do relatório; o mês anterior usa todos os dias do calendário, mesmo sem sobreposição de datas; rótulos identificam ambos os intervalos |
 
 ## Questões abertas
 
