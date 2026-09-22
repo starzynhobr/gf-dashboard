@@ -27,6 +27,8 @@ export type TodayCharactersResult =
         accountName: string;
         completedDungeons: number;
         selectedDungeons: number;
+        dailyMissionCompleted?: boolean;
+        vipExpiresAt?: string | null;
       }>;
     };
 
@@ -46,6 +48,7 @@ export type TodayActivityResult = {
   }>;
   monthlyGoldTotal: number;
   earnedGoldToday?: number;
+  pveBagsEarnedToday?: number;
   todaySalesMinor?: number;
 };
 
@@ -121,6 +124,7 @@ export interface HistoryDaySummary {
   towerCompleted: number;
   towerTotal: number;
   dropsCount: number;
+  routineDurationSeconds?: number;
 }
 
 export type HistoryOverviewResult =
@@ -133,6 +137,7 @@ export interface HistoryDayDetailResult {
   runsCompleted: number;
   goldEarned: number;
   pveBagsEarned: number;
+  routineDurationSeconds?: number;
   characters: Array<{
     id: string;
     name: string;
@@ -167,15 +172,31 @@ export interface HistoryDayDetailResult {
   }>;
 }
 
+export interface MonthlySalesHistoryPoint {
+  monthKey: string;
+  monthLabel: string;
+  salesAmountMinor: number;
+  salesCount: number;
+  isPartial: boolean;
+}
+
 export interface ReportKpis {
   monthlySalesMinor: number;
-  salesChangePercent: number;
+  salesChangePercent: number | null;
+  previousSalesMinor?: number;
+  salesChangeStatus?: "valid" | "no_baseline" | "no_activity";
   monthlyFarmGold: number;
-  farmGoldChangePercent: number;
+  farmGoldChangePercent: number | null;
+  previousFarmGold?: number;
+  farmGoldChangeStatus?: "valid" | "no_baseline" | "no_activity";
   allTimeFarmGold: number;
   dailyAverageGold: number;
-  monthlyPveBagsSold: number;
-  pveBagsChangePercent: number;
+  monthlyPveBagsEarned: number;
+  pveBagsEarnedChangePercent: number | null;
+  previousPveBagsEarned?: number;
+  pveBagsEarnedChangeStatus?: "valid" | "no_baseline" | "no_activity";
+  isPartialMonth?: boolean;
+  comparisonPeriodDays?: number;
 }
 
 export interface DailyEvolutionPoint {
@@ -190,7 +211,11 @@ export interface MonthlyComparison {
   previousMonthGold: number;
   currentMonthName: string;
   currentMonthGold: number;
-  growthPercent: number;
+  growthPercent: number | null;
+  growthStatus?: "valid" | "no_baseline" | "no_activity";
+  isPartial?: boolean;
+  previousPeriodLabel?: string;
+  currentPeriodLabel?: string;
 }
 
 export interface CumulativeMonthPoint {
@@ -204,6 +229,36 @@ export interface FinancialSummary {
   itemsSoldCount: number;
   goldConvertedTotal: number;
   averageTicketMinor: number;
+  expensesGold: number;
+  vipExpensesGold: number;
+  towerExpensesGold: number;
+  manualExpensesGold: number;
+}
+
+export type ExpenseCategory = "upgrade" | "consumable" | "service" | "other";
+export interface ExpenseRegistrationInput {
+  category: ExpenseCategory;
+  amountGold: number;
+  occurredOn: string;
+  description?: string;
+}
+
+export interface ExpenseHistoryRow {
+  id: string;
+  category: ExpenseCategory;
+  amountGold: number;
+  occurredAt: string;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface WorkRoutineResult {
+  id: string;
+  status: "running" | "paused" | "completed";
+  startedAt: string;
+  pausedAt: string | null;
+  finishedAt?: string;
+  elapsedSeconds: number;
 }
 
 export interface RecentSaleRow {
@@ -215,9 +270,38 @@ export interface RecentSaleRow {
   soldAt: string;
 }
 
+export interface RecentMovement {
+  id: string;
+  kind: string;
+  title: string;
+  detail: string | null;
+  occurredAt: string;
+  goldAmount: number | null;
+  pveBags: number | null;
+  amountMinor: number | null;
+}
+
+export interface WorkRoutineHistory {
+  monthSeconds: number;
+  weekSeconds: number;
+  previousWeekSeconds: number;
+  monthSessionCount: number;
+  activeDaysInMonth: number;
+  recentSessions: Array<{
+    id: string;
+    startedAt: string;
+    finishedAt: string;
+    elapsedSeconds: number;
+  }>;
+}
+
 export interface MonthlyTarget {
+  targetMonth?: string;
   targetGold: number;
   currentGold: number;
+  currentPveBags: number;
+  pveBagUnitValueGold: number | null;
+  currentTotalValueGold: number;
   percentage: number;
   remainingGold: number;
   daysRemaining: number;
@@ -241,8 +325,11 @@ export type ReportsOverviewResult =
       cumulativeHistory: CumulativeMonthPoint[];
       financialSummary: FinancialSummary;
       recentSales: RecentSaleRow[];
+      recentMovements: RecentMovement[];
+      workRoutineHistory: WorkRoutineHistory;
       monthlyTarget: MonthlyTarget;
       topCharacters: TopCharacterRow[];
+      monthlySalesHistory?: MonthlySalesHistoryPoint[];
     };
 
 export interface CurrencyRateResult {
@@ -261,8 +348,9 @@ export interface SaleRegistrationInput {
   originalAmountMinor: number;
   currency: string;
   exchangeRateMicros: number;
-  realAmountMinor: number;
-  soldAt?: string;
+  exchangeRateSource: string;
+  idempotencyKey: string;
+  soldAt: string;
 }
 
 export interface SaleRegistrationResult {
@@ -271,7 +359,9 @@ export interface SaleRegistrationResult {
   originalAmountMinor: number;
   currency: string;
   exchangeRateMicros: number;
+  exchangeRateSource: string;
   soldAt: string;
+  alreadyRecorded: boolean;
 }
 
 export interface AppGateway {
@@ -279,8 +369,10 @@ export interface AppGateway {
   getToday(): Promise<TodayResult>;
   getTodayCharacters(): Promise<TodayCharactersResult>;
   getTodayActivity(): Promise<TodayActivityResult>;
-  getCharacterDay(characterId: string): Promise<CharacterDayResult>;
-  saveCharacterDay(characterId: string, completedActivityIds: string[]): Promise<{ completedDungeons: number; gold: number; pveBags: number }>;
+  getCharacterDay(characterId: string, activityDate?: string): Promise<CharacterDayResult>;
+  saveCharacterDay(characterId: string, completedActivityIds: string[], activityDate: string): Promise<{ completedDungeons: number; gold: number; pveBags: number }>;
+  setCharacterDailyMission(characterId: string, completed: boolean): Promise<{ completed: boolean }>;
+  saveCharacterVip(characterId: string, paidGold: number, remainingDays: number, remainingHours: number): Promise<{ expiresAt: string; paidGold: number }>;
   getManagementOverview(): Promise<ManagementOverviewResult>;
   createAccount(name: string, serverName: string): Promise<{ id: string; name: string }>;
   createCharacter(accountId: string, name: string, className: string, level: number): Promise<{ id: string; name: string }>;
@@ -296,8 +388,20 @@ export interface AppGateway {
   getHistoryDayDetail(activityDate: string, filter?: HistoryFilterInput): Promise<HistoryDayDetailResult>;
   recordPveBagQuote(unitValueGold: number, source?: string): Promise<{ quoteId: string; unitValueGold: number; observedAt: string }>;
   getReportsOverview(referenceDate?: string): Promise<ReportsOverviewResult>;
+  setMonthlyTarget(targetMonth: string, targetGold: number): Promise<{ targetMonth: string; targetGold: number }>;
+  recordExpense(input: ExpenseRegistrationInput): Promise<{ transactionId: string }>;
+  getExpenseHistory(): Promise<{ expenses: ExpenseHistoryRow[] }>;
+  updateExpense(transactionId: string, input: ExpenseRegistrationInput): Promise<{ transactionId: string }>;
+  voidExpense(transactionId: string): Promise<{ voided: boolean }>;
+  getWorkRoutine(): Promise<{ routine: WorkRoutineResult | null }>;
+  startWorkRoutine(): Promise<WorkRoutineResult>;
+  pauseWorkRoutine(): Promise<WorkRoutineResult>;
+  resumeWorkRoutine(): Promise<WorkRoutineResult>;
+  stopWorkRoutine(): Promise<WorkRoutineResult>;
   getCurrencyRate(baseCurrency: string, quoteCurrency?: string, date?: string): Promise<CurrencyRateResult>;
   recordSale(input: SaleRegistrationInput): Promise<SaleRegistrationResult>;
+  getAutostart(): Promise<{ enabled: boolean }>;
+  setAutostart(enabled: boolean): Promise<{ enabled: boolean }>;
 }
 
 export class GatewayError extends Error {

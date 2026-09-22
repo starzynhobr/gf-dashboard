@@ -2,7 +2,7 @@
 tipo: plano
 status: em-execucao
 ordem: linear
-atualizado_em: 2026-08-26
+atualizado_em: 2026-08-27
 ---
 
 # Plano Mestre de Implementação
@@ -187,6 +187,8 @@ Este é o caminho linear. Cada etapa termina com evidência e um portão. Não i
 
 ## Etapa 9 — Histórico, inventário e financeiro
 
+**Status:** em execução. Histórico de farm, vendas multimoeda, despesas de VIP/Torre e lançamento manual de despesas em gold estão disponíveis; VIP preserva expiração UTC com horas e permite ajustar a validade sem duplicar custo; despesas manuais possuem histórico, correção por substituição e estorno auditável. Inventário e correções auditadas de sessões permanecem pendentes.
+
 **Objetivo:** transformar os fatos dormentes em rastreabilidade útil.
 
 1. Criar histórico com filtros por período, conta, personagem e atividade.
@@ -202,6 +204,8 @@ Este é o caminho linear. Cada etapa termina com evidência e um portão. Não i
 **Portão:** qualquer saldo ou total exibido pode ser explicado por seus fatos de origem.
 
 ## Etapa 10 — Relatórios e exportação
+
+**Status:** em execução. KPIs e gráficos de produção/vendas existem; a meta mensal agora é persistida por mês/workspace e os cards possuem navegação operacional. A Home já registra sessões de rotina com pausa/retomada, e os relatórios exibem histórico, totais mensais/semanais e comparação da semana anterior. Inventário, filtros e exportação ainda não atendem o portão desta etapa.
 
 **Objetivo:** responder perguntas operacionais sem criar novas fontes de verdade.
 

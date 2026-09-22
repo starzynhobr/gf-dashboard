@@ -20,6 +20,16 @@ def frontend_index_path() -> Path:
     return bundle_root() / "frontend" / "dist" / "index.html"
 
 
+def app_icon_path() -> Path:
+    ico_candidate = bundle_root() / "assets" / "app_icon.ico"
+    if ico_candidate.is_file():
+        return ico_candidate
+    dev_ico = bundle_root() / "build_assets" / "app_icon.ico"
+    if dev_ico.is_file():
+        return dev_ico
+    return bundle_root() / "frontend" / "src" / "assets" / "gf-farmer-mark.png"
+
+
 def validated_dev_url(raw_url: str | None = None) -> str | None:
     candidate = raw_url if raw_url is not None else os.getenv(DEV_URL_ENV)
     if not candidate:

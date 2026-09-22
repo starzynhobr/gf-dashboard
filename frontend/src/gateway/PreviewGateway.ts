@@ -20,11 +20,14 @@ const previewCharacters: TodayCharactersResult = {
     accountName: index < 5 ? "Conta 1" : "Conta 2",
     completedDungeons: Number(completedDungeons),
     selectedDungeons: 9,
+    dailyMissionCompleted: index < 6,
+    vipExpiresAt: index < 2 ? new Date(Date.now() + (29 - index * 2) * 86_400_000).toISOString() : null,
   })),
 };
 
 export class PreviewGateway implements AppGateway {
   private visibility: DashboardLayoutResult["visibility"] = { "daily-summary": true, "recent-drops": true, "monthly-performance": true };
+  private routine: import("./AppGateway").WorkRoutineResult | null = null;
   ping(): Promise<PingResult> {
     return Promise.resolve({ message: "pong", runtime: "desktop", bridgeVersion: 1 });
   }
@@ -67,18 +70,19 @@ export class PreviewGateway implements AppGateway {
       })),
       monthlyGoldTotal: 1900000,
       earnedGoldToday: 310000,
+      pveBagsEarnedToday: 275,
       todaySalesMinor: 8420,
     });
   }
 
-  getCharacterDay(characterId: string): Promise<CharacterDayResult> {
+  getCharacterDay(characterId: string, activityDate?: string): Promise<CharacterDayResult> {
     const character = previewCharacters.characters.find((item) => item.id === characterId) ?? previewCharacters.characters[0];
     return Promise.resolve({
       characterId: character.id,
       characterName: character.name,
       className: character.className,
       accountName: character.accountName,
-      activityDate: "2026-08-26",
+      activityDate: activityDate ?? "2026-08-26",
       dungeons: dungeonNames.map((name, index) => ({
         characterActivityId: `preview-ca-${index + 1}`,
         activityId: `preview-dungeon-${index + 1}`,
@@ -91,8 +95,22 @@ export class PreviewGateway implements AppGateway {
     });
   }
 
-  saveCharacterDay(_characterId: string, completedActivityIds: string[]): Promise<{ completedDungeons: number; gold: number; pveBags: number }> {
+  saveCharacterDay(_characterId: string, completedActivityIds: string[], activityDate: string): Promise<{ completedDungeons: number; gold: number; pveBags: number }> {
+    void activityDate;
     return Promise.resolve({ completedDungeons: completedActivityIds.length, gold: 0, pveBags: completedActivityIds.length * 5 });
+  }
+
+  setCharacterDailyMission(characterId: string, completed: boolean): Promise<{ completed: boolean }> {
+    const character = previewCharacters.characters.find((item) => item.id === characterId);
+    if (character) character.dailyMissionCompleted = completed;
+    return Promise.resolve({ completed });
+  }
+
+  saveCharacterVip(characterId: string, paidGold: number, remainingDays: number, remainingHours: number): Promise<{ expiresAt: string; paidGold: number }> {
+    const character = previewCharacters.characters.find((item) => item.id === characterId);
+    const expiresAt = new Date(Date.now() + (remainingDays * 24 + remainingHours) * 3_600_000).toISOString();
+    if (character) character.vipExpiresAt = expiresAt;
+    return Promise.resolve({ expiresAt, paidGold });
   }
 
   getManagementOverview(): Promise<ManagementOverviewResult> {
@@ -169,6 +187,7 @@ export class PreviewGateway implements AppGateway {
           towerCompleted: 1,
           towerTotal: 1,
           dropsCount: 5,
+          routineDurationSeconds: 23940,
         },
         {
           activityDate: "2026-08-25",
@@ -180,6 +199,7 @@ export class PreviewGateway implements AppGateway {
           towerCompleted: 0,
           towerTotal: 0,
           dropsCount: 2,
+          routineDurationSeconds: 21600,
         },
       ],
     });
@@ -192,6 +212,7 @@ export class PreviewGateway implements AppGateway {
       runsCompleted: 275,
       goldEarned: 310000,
       pveBagsEarned: 250,
+      routineDurationSeconds: 23940,
       characters: previewCharacters.characters.map((character) => ({
         id: character.id,
         name: character.name,
@@ -240,12 +261,20 @@ export class PreviewGateway implements AppGateway {
       kpis: {
         monthlySalesMinor: 84200,
         salesChangePercent: 18,
+        previousSalesMinor: 71300,
+        salesChangeStatus: "valid",
         monthlyFarmGold: 18420000,
         farmGoldChangePercent: 12,
+        previousFarmGold: 16460000,
+        farmGoldChangeStatus: "valid",
         allTimeFarmGold: 126850000,
         dailyAverageGold: 614000,
-        monthlyPveBagsSold: 250,
-        pveBagsChangePercent: 25,
+        monthlyPveBagsEarned: 450,
+        pveBagsEarnedChangePercent: 25,
+        previousPveBagsEarned: 360,
+        pveBagsEarnedChangeStatus: "valid",
+        isPartialMonth: true,
+        comparisonPeriodDays: 27,
       },
       dailyEvolution: [
         { day: 1, activityDate: "2026-08-01", gold: 520000, runs: 70 },
@@ -264,11 +293,15 @@ export class PreviewGateway implements AppGateway {
         { day: 27, activityDate: "2026-08-27", gold: 1280000, runs: 180 },
       ],
       monthlyComparison: {
-        previousMonthName: "Mês passado",
+        previousMonthName: "Jul (1-27)",
         previousMonthGold: 16460000,
-        currentMonthName: "Mês atual",
+        currentMonthName: "Ago (1-27)",
         currentMonthGold: 18420000,
         growthPercent: 12,
+        growthStatus: "valid",
+        isPartial: true,
+        previousPeriodLabel: "1 - 27 de julho",
+        currentPeriodLabel: "1 - 27 de agosto",
       },
       cumulativeHistory: [
         { monthLabel: "ago/24", monthKey: "2024-08", cumulativeGold: 8500000 },
@@ -290,6 +323,10 @@ export class PreviewGateway implements AppGateway {
         itemsSoldCount: 94,
         goldConvertedTotal: 18420000,
         averageTicketMinor: 896,
+        expensesGold: 225000,
+        vipExpensesGold: 200000,
+        towerExpensesGold: 25000,
+        manualExpensesGold: 0,
       },
       recentSales: [
         { id: "sale-1", itemName: "Saco de Cristal (PvE)", quantity: 10, amountMinor: 3500, currency: "BRL", soldAt: "2026-08-27T14:32:00" },
@@ -297,9 +334,30 @@ export class PreviewGateway implements AppGateway {
         { id: "sale-3", itemName: "Baú do Tesouro Antigo", quantity: 2, amountMinor: 1800, currency: "BRL", soldAt: "2026-08-26T22:45:00" },
         { id: "sale-4", itemName: "Saco de Cristal (PvE)", quantity: 5, amountMinor: 1750, currency: "BRL", soldAt: "2026-08-26T19:07:00" },
       ],
+      recentMovements: [
+        { id: "movement-1", kind: "dungeon", title: "Dimensão Distorcida", detail: "Sentry1", occurredAt: "2026-08-27T14:32:00", goldAmount: 12000, pveBags: 5, amountMinor: null },
+        { id: "movement-2", kind: "sale_gold", title: "Venda de gold", detail: null, occurredAt: "2026-08-27T13:18:00", goldAmount: 950000, pveBags: null, amountMinor: 7600 },
+        { id: "movement-3", kind: "expense", title: "Despesa · Melhoria", detail: "Pedra para arma", occurredAt: "2026-08-27T11:45:00", goldAmount: 44000, pveBags: null, amountMinor: null },
+      ],
+      workRoutineHistory: {
+        monthSeconds: 42_900,
+        weekSeconds: 18_600,
+        previousWeekSeconds: 14_400,
+        monthSessionCount: 8,
+        activeDaysInMonth: 5,
+        recentSessions: [
+          { id: "routine-3", startedAt: "2026-08-27T18:00:00Z", finishedAt: "2026-08-27T20:05:00Z", elapsedSeconds: 7_500 },
+          { id: "routine-2", startedAt: "2026-08-26T18:15:00Z", finishedAt: "2026-08-26T19:50:00Z", elapsedSeconds: 5_700 },
+          { id: "routine-1", startedAt: "2026-08-25T17:40:00Z", finishedAt: "2026-08-25T19:10:00Z", elapsedSeconds: 5_400 },
+        ],
+      },
       monthlyTarget: {
+        targetMonth: "2026-08",
         targetGold: 25000000,
         currentGold: 18420000,
+        currentPveBags: 450,
+        pveBagUnitValueGold: 1000,
+        currentTotalValueGold: 18870000,
         percentage: 74,
         remainingGold: 6580000,
         daysRemaining: 5,
@@ -311,8 +369,29 @@ export class PreviewGateway implements AppGateway {
         { rank: 4, characterId: "char-4", characterName: "Starlicia", className: "Druida", goldEarned: 2640000 },
         { rank: 5, characterId: "char-5", characterName: "StarzynhoBR", className: "Druida", goldEarned: 1370000 },
       ],
+      monthlySalesHistory: [
+        { monthKey: "2026-04", monthLabel: "Abr/26", salesAmountMinor: 32000, salesCount: 5, isPartial: false },
+        { monthKey: "2026-05", monthLabel: "Mai/26", salesAmountMinor: 45000, salesCount: 8, isPartial: false },
+        { monthKey: "2026-06", monthLabel: "Jun/26", salesAmountMinor: 58000, salesCount: 10, isPartial: false },
+        { monthKey: "2026-07", monthLabel: "Jul/26", salesAmountMinor: 71300, salesCount: 12, isPartial: false },
+        { monthKey: "2026-08", monthLabel: "Ago/26", salesAmountMinor: 84200, salesCount: 14, isPartial: true },
+      ],
     });
   }
+
+  getExpenseHistory(): Promise<{ expenses: import("./AppGateway").ExpenseHistoryRow[] }> {
+    return Promise.resolve({
+      expenses: [
+        { id: "expense-1", category: "upgrade", amountGold: 44000, occurredAt: "2026-08-27T00:00:00+00:00", description: "Pedra para arma", createdAt: "2026-08-27T12:00:00+00:00" },
+      ],
+    });
+  }
+
+  updateExpense(transactionId: string, input: import("./AppGateway").ExpenseRegistrationInput): Promise<{ transactionId: string }> {
+    return Promise.resolve({ transactionId: `${transactionId}-corrected-${input.amountGold}` });
+  }
+
+  voidExpense(): Promise<{ voided: boolean }> { return Promise.resolve({ voided: true }); }
 
   getCurrencyRate(baseCurrency: string, quoteCurrency: string = "BRL", date?: string): Promise<import("./AppGateway").CurrencyRateResult> {
     const rates: Record<string, { micros: number; formatted: string }> = {
@@ -334,11 +413,34 @@ export class PreviewGateway implements AppGateway {
   recordSale(input: import("./AppGateway").SaleRegistrationInput): Promise<import("./AppGateway").SaleRegistrationResult> {
     return Promise.resolve({
       saleId: "preview-sale-1",
-      realAmountMinor: input.realAmountMinor,
+      realAmountMinor: Math.round((input.originalAmountMinor * input.exchangeRateMicros) / 1_000_000),
       originalAmountMinor: input.originalAmountMinor,
       currency: input.currency,
       exchangeRateMicros: input.exchangeRateMicros,
-      soldAt: input.soldAt ?? new Date().toISOString(),
+      exchangeRateSource: input.exchangeRateSource,
+      soldAt: input.soldAt,
+      alreadyRecorded: false,
     });
+  }
+
+  setMonthlyTarget(targetMonth: string, targetGold: number): Promise<{ targetMonth: string; targetGold: number }> {
+    return Promise.resolve({ targetMonth, targetGold });
+  }
+
+  recordExpense(): Promise<{ transactionId: string }> { return Promise.resolve({ transactionId: "preview-expense-1" }); }
+  getWorkRoutine(): Promise<{ routine: import("./AppGateway").WorkRoutineResult | null }> { return Promise.resolve({ routine: this.routine }); }
+  startWorkRoutine(): Promise<import("./AppGateway").WorkRoutineResult> {
+    this.routine ??= { id: "preview-routine", status: "running", startedAt: new Date().toISOString(), pausedAt: null, elapsedSeconds: 0 };
+    return Promise.resolve(this.routine);
+  }
+  pauseWorkRoutine(): Promise<import("./AppGateway").WorkRoutineResult> { if (this.routine) this.routine = { ...this.routine, status: "paused", pausedAt: new Date().toISOString() }; return Promise.resolve(this.routine!); }
+  resumeWorkRoutine(): Promise<import("./AppGateway").WorkRoutineResult> { if (this.routine) this.routine = { ...this.routine, status: "running", pausedAt: null, startedAt: new Date().toISOString() }; return Promise.resolve(this.routine!); }
+  stopWorkRoutine(): Promise<import("./AppGateway").WorkRoutineResult> { if (this.routine) this.routine = { ...this.routine, status: "completed", finishedAt: new Date().toISOString() }; return Promise.resolve(this.routine!); }
+  getAutostart(): Promise<{ enabled: boolean }> {
+    return Promise.resolve({ enabled: localStorage.getItem("gf-dashboard.autostart") === "true" });
+  }
+  setAutostart(enabled: boolean): Promise<{ enabled: boolean }> {
+    localStorage.setItem("gf-dashboard.autostart", String(enabled));
+    return Promise.resolve({ enabled });
   }
 }

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 
 from gf_dashboard.domain.value_objects import Gold
@@ -24,6 +24,8 @@ class TodayCharacter:
     account_name: str
     completed_dungeons: int
     selected_dungeons: int
+    daily_mission_completed: bool
+    vip_expires_at: datetime | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +104,7 @@ class TodayActivityOverview:
     monthly_gold: tuple[MonthlyGoldPoint, ...]
     monthly_gold_total: Gold
     earned_gold_today: Gold
+    pve_bags_earned_today: int
     today_sales_minor: int
 
 
@@ -116,6 +119,7 @@ class HistoryDaySummary:
     tower_completed: int
     tower_total: int
     drops_count: int
+    routine_duration_seconds: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,18 +161,36 @@ class HistoryDayDetail:
     characters: tuple[HistoryCharacterDetail, ...]
     tower_sessions: tuple[HistoryTowerSession, ...]
     drops: tuple[RecentDrop, ...]
+    routine_duration_seconds: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class MonthlySalesHistoryPoint:
+    month_key: str
+    month_label: str
+    sales_amount_minor: int
+    sales_count: int
+    is_partial: bool
 
 
 @dataclass(frozen=True, slots=True)
 class ReportKpis:
     monthly_sales_minor: int
-    sales_change_percent: int
+    sales_change_percent: int | None
     monthly_farm_gold: Gold
-    farm_gold_change_percent: int
+    farm_gold_change_percent: int | None
     all_time_farm_gold: Gold
     daily_average_gold: Gold
-    monthly_pve_bags_sold: int
-    pve_bags_change_percent: int
+    monthly_pve_bags_earned: int
+    pve_bags_earned_change_percent: int | None
+    previous_sales_minor: int = 0
+    previous_farm_gold: Gold = field(default_factory=lambda: Gold(0))
+    previous_pve_bags_earned: int = 0
+    is_partial_month: bool = False
+    comparison_period_days: int = 0
+    sales_change_status: str = "valid"
+    farm_gold_change_status: str = "valid"
+    pve_bags_change_status: str = "valid"
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,7 +207,11 @@ class MonthlyComparison:
     previous_month_gold: Gold
     current_month_name: str
     current_month_gold: Gold
-    growth_percent: int
+    growth_percent: int | None
+    is_partial: bool = False
+    growth_status: str = "valid"
+    previous_period_label: str = ""
+    current_period_label: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,6 +227,10 @@ class FinancialSummary:
     items_sold_count: int
     gold_converted_total: Gold
     average_ticket_minor: int
+    expenses_gold: Gold
+    vip_expenses_gold: Gold
+    tower_expenses_gold: Gold
+    manual_expenses_gold: Gold
 
 
 @dataclass(frozen=True, slots=True)
@@ -214,9 +244,43 @@ class RecentSaleRow:
 
 
 @dataclass(frozen=True, slots=True)
+class RecentMovement:
+    id: str
+    kind: str
+    title: str
+    detail: str | None
+    occurred_at: datetime
+    gold_amount: Gold | None
+    pve_bags: int | None
+    amount_minor: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class WorkRoutineSessionRow:
+    id: str
+    started_at: datetime
+    finished_at: datetime
+    elapsed_seconds: int
+
+
+@dataclass(frozen=True, slots=True)
+class WorkRoutineHistory:
+    month_seconds: int
+    week_seconds: int
+    previous_week_seconds: int
+    month_session_count: int
+    active_days_in_month: int
+    recent_sessions: tuple[WorkRoutineSessionRow, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class MonthlyTarget:
+    target_month: str
     target_gold: Gold
     current_gold: Gold
+    current_pve_bags: int
+    pve_bag_unit_value: Gold | None
+    current_total_value_gold: Gold
     percentage: int
     remaining_gold: Gold
     days_remaining: int
@@ -239,5 +303,8 @@ class ReportsOverview:
     cumulative_history: tuple[CumulativeMonthPoint, ...]
     financial_summary: FinancialSummary
     recent_sales: tuple[RecentSaleRow, ...]
+    recent_movements: tuple[RecentMovement, ...]
+    work_routine_history: WorkRoutineHistory
     monthly_target: MonthlyTarget
     top_characters: tuple[TopCharacterRow, ...]
+    monthly_sales_history: tuple[MonthlySalesHistoryPoint, ...] = ()

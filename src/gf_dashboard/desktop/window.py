@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from PySide6.QtCore import QUrl
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEnginePage
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QMainWindow
 
 from gf_dashboard.infrastructure.persistence import SqliteDatabase
 from gf_dashboard.presentation.qt_bridge.app_bridge import AppBridge
-from gf_dashboard.runtime import frontend_index_path, validated_dev_url
+from gf_dashboard.runtime import app_icon_path, frontend_index_path, validated_dev_url
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("GF Farmer")
         self.resize(1280, 760)
         self.setMinimumSize(1024, 640)
+
+        icon_path = app_icon_path()
+        if icon_path.is_file():
+            self.setWindowIcon(QIcon(str(icon_path)))
 
         dev_url = validated_dev_url()
         self.web_view = QWebEngineView(self)

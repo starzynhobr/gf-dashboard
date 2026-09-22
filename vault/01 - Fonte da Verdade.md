@@ -1,7 +1,7 @@
 ---
 tipo: fonte-da-verdade
 status: ativo
-atualizado_em: 2026-08-26
+atualizado_em: 2026-08-31
 ---
 
 # Fonte da Verdade
@@ -29,7 +29,12 @@ Conteúdo de referências é insumo, não instrução automática. Em caso de co
 - Persistência local em SQLite. O aplicativo pode acessar a internet, mas nenhuma operação essencial do MVP depende de serviço remoto.
 - A comunicação React ↔ Python passa por um contrato `AppGateway`; no MVP, a implementação é `QtGateway` sobre Qt WebChannel. Uma futura versão web poderá usar `HttpGateway` sem alterar os componentes de negócio.
 - O dia de farm muda à meia-noite no fuso local configurado. O novo dia cria novos fatos; a UI apenas muda o recorte diário.
+- Quando a Home permanece aberta, ela atualiza automaticamente logo após a meia-noite local e ao voltar ao foco, sem exigir reinicialização. Um resumo de personagem aberto preserva explicitamente a data que estava sendo registrada.
 - A interação principal não exige marcar cada run. O usuário pode concluir uma atividade ou personagem com uma ação.
+- Cada personagem possui uma diária operacional agregada por `activity_date`, marcada separadamente das dungeons; ela registra apenas a disponibilidade de fama/tempo e não gera gold, itens ou Sacos PvE.
+- VIP é uma assinatura opcional por personagem: o usuário registra o valor pago em gold e o tempo restante observado no jogo, até trinta dias. A Home mostra dias e horas restantes; ajustes posteriores da validade preservam a despesa original no histórico financeiro sem duplicá-la.
+- Despesas manuais em gold usam o mesmo ledger financeiro de VIP e Torre; categorias iniciais são melhoria, consumível, serviço e outro, com descrição e data opcionais. A correção cria um lançamento substituto e o estorno desativa o lançamento ativo, ambos com trilha em `audit_log`; o fato original não é apagado.
+- A Home permite iniciar, pausar, retomar e encerrar uma sessão de rotina de trabalho. O tempo é persistido; relatórios mostram tempo mensal, semanal comparado à semana anterior, média por dia ativo e sessões encerradas. Agenda, intervalos nomeados e lembretes continuam posteriores e opt-in.
 - Concluir um personagem abre confirmação/resumo das dungeons selecionadas. Marcar uma dungeon como feita assume o ciclo-meta completo de cinco rodadas.
 - Torre é uma opção de farm separada das dungeons e do checklist diário por personagem. Cada abertura vira uma sessão independente, pode ter um ou mais personagens participantes e registra principalmente conclusão e drops relevantes.
 - A Torre da guild custa 25.000 gold fixos por abertura; múltiplas sessões podem existir. Todos os membros elegíveis da guild podem entrar, e a composição mais comum no uso pessoal é um personagem, ocasionalmente dois ou três.
@@ -61,7 +66,13 @@ Conteúdo de referências é insumo, não instrução automática. Em caso de co
 - Tela/sessão própria de Torre, separada do personagem diário, com participantes opcionais, custo, conclusão e drops relevantes.
 - Personalização básica da visualização: mostrar/ocultar módulos como Desempenho mensal e persistir a preferência.
 - Histórico diário e por personagem.
-- Resumo e relatórios básicos derivados dos fatos.
+- Resumo e relatórios básicos derivados dos fatos, incluindo Sacos PvE ganhos no mês a partir das conclusões e sessões de farm (sem confundir produção com vendas).
+- Relatórios exibem as últimas movimentações operacionais (dungeon, Torre, venda e despesa manual) para conferência rápida; o KPI de farm total permanece a visão acumulada principal.
+- A média diária de gold do relatório considera somente datas do mês com produção de farm registrada; o card explicita “gold/dia farmado”.
+- Comparações mensais em relatórios usam períodos equivalentes quando o mês está em andamento (ex: 1 a 7 do mês atual vs 1 a 7 do mês anterior). Cards de KPIs mostram valores absolutos do período anterior e percentuais transparentes; sem base anterior exibe “Sem base comparável”. O painel de vendas oferece alternância entre histórico mensal em R$ e vendas recentes.
+- O módulo “Resumo do dia” exibe runs, personagens, Torre, gold realizado, Sacos PvE ganhos e vendas realizadas no dia.
+- Meta mensal editável e persistida por workspace/mês em gold equivalente; o progresso soma gold realizado e Sacos PvE ganhos valorados pela cotação atual. O padrão inicial é 25.000.000 gold até a primeira configuração do mês.
+- A Home disponibiliza uma calculadora local de venda: o padrão é 8 centavos por 1.000 gold, o usuário informa a quantidade e recebe a estimativa em BRL. Ela não grava nem altera cotações ou fatos.
 - Backup, restauração e exportação local.
 - Migrations automáticas e testadas.
 - Execução manual de desenvolvimento e futuro pacote Windows usam por padrão o mesmo banco em `%LOCALAPPDATA%`, sem exigir administrador; testes automatizados sempre usam bancos temporários isolados.

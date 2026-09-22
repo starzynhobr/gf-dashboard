@@ -1,4 +1,4 @@
-import { ChartBar, Coins, CurrencyDollar, Package, ShieldChevron, Sword, UsersThree } from "@phosphor-icons/react";
+import { ChartBar, Coins, CurrencyDollar, Package, ShieldChevron, Sword, Tote, UsersThree } from "@phosphor-icons/react";
 import { lazy, Suspense } from "react";
 
 import type { DashboardModuleKey, TodayActivityResult } from "../gateway/AppGateway";
@@ -36,6 +36,7 @@ export function DashboardModuleHost({
   monthlyData: Array<{ day: number; gold: number }>;
 }) {
   const earnedGold = activity?.earnedGoldToday ?? gold;
+  const pveBagsEarned = activity?.pveBagsEarnedToday ?? 0;
   const todaySalesMinor = activity?.todaySalesMinor ?? 0;
 
   return (
@@ -65,6 +66,11 @@ export function DashboardModuleHost({
               <Coins size={17} />
               <span>Ouro ganho</span>
               <strong>{numberFormat.format(earnedGold)}</strong>
+            </p>
+            <p className="summary-bags">
+              <Tote size={17} />
+              <span>Sacos PvE ganhos</span>
+              <strong>{numberFormat.format(pveBagsEarned)}</strong>
             </p>
             <p className="summary-sales">
               <CurrencyDollar size={17} className="text-emerald-400" />

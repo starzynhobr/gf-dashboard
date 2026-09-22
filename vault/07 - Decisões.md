@@ -1,7 +1,7 @@
 ---
 tipo: decisoes
 status: ativo
-atualizado_em: 2026-08-26
+atualizado_em: 2026-08-30
 ---
 
 # Decisões
@@ -62,6 +62,21 @@ atualizado_em: 2026-08-26
 | ADR-044 | Aceita | MVP usa WebChannel, não servidor HTTP local | Menor superfície operacional agora; a API HTTP nasce apenas quando houver canal web |
 | ADR-045 | Aceita | Rotina inicial global com as nove dungeons selecionadas | Fixture e dashboard começam determinísticos; a configuração global pode reduzir a seleção depois |
 | ADR-046 | Aceita | “Ouro estimado hoje” começa pelo gold previsível das dungeons selecionadas | Não deduz Torre nem depende de drops; Sacos PvE aparecem como estimativa complementar quando houver cotação |
+| ADR-047 | Aceita | Venda calcula conversão no backend e usa chave de idempotência | O frontend só fornece intenção e valor/cotação; o fato preserva origem, moeda e total BRL derivados |
+| ADR-048 | Aceita | Diárias são um fato operacional agregado por personagem e `activity_date` | Elas mostram a preparação de fama/tempo sem contaminar recompensas de dungeon, gold ou inventário |
+| ADR-049 | Aceita | Meta de gold é configurável e persistida por workspace/mês | O dashboard usa 25.000.000 apenas como fallback antes da primeira configuração mensal |
+| ADR-050 | Aceita | VIP é assinatura por personagem de trinta dias, com custo em gold | A ativação cria fato de vigência e despesa `vip`; relatórios separam VIP e custo de Torre |
+| ADR-051 | Aceita | Média diária de gold considera somente dias com produção registrada | Evita diluir o desempenho pelos dias de calendário sem farm e preserva zero quando não há fatos no mês |
+| ADR-052 | Aceita | Home atualiza na virada do dia local e ao retornar ao foco | O dashboard aberto não exige reinicialização para trocar o recorte operacional; a consulta continua sendo a fonte de verdade |
+| ADR-053 | Aceita | Despesa manual é fato no ledger `transactions` | Relatórios somam VIP, Torre e categorias manuais sem duplicar sistemas financeiros |
+| ADR-054 | Aceita | Rotina v1 é uma sessão persistida, não apenas cronômetro visual | Pausa e retomada sobrevivem ao fechamento do app; agenda e lembretes ficam posteriores |
+| ADR-055 | Aceita | Meta mensal usa gold equivalente de produção | Gold realizado e Sacos PvE ganhos entram na meta pelo preço atual do saco; fatos históricos não são reescritos |
+| ADR-056 | Aceita | Calculadora de gold é local e não autoritativa | O padrão de 8c por 1.000 gold serve só à estimativa de BRL, sem criar cotação persistida |
+| ADR-057 | Aceita | Correção de despesa manual cria substituição auditável | O lançamento anterior deixa de compor totais sem perder antes/depois e vínculo da correção |
+| ADR-058 | Aceita | Relatórios priorizam feed de movimentações em vez de gráfico acumulado redundante | Com poucos pontos históricos, conferência de dungeon, Torre, venda e despesa é mais útil; o card Farm total preserva o acumulado |
+| ADR-059 | Aceita | Tempo de rotina é derivado apenas de sessões encerradas | Comparações usam `accumulated_seconds`; `created_at` preserva o início original diante de pausas e retomadas |
+| ADR-060 | Aceita | Comparação mensal usa período equivalente e percentuais seguros | Meses em andamento comparam até o mesmo dia do mês anterior; quando não há base histórica, exibe 'Sem base comparável'; vendas ganham histórico mensal e recentes |
+| ADR-061 | Aceita | VIP usa expiração UTC com precisão de hora e tempo restante informado | A Home mostra dias/horas; ajuste da vigência ativa não duplica a despesa original; a migration preserva datas legadas |
 
 ## Questões abertas
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any, cast
 from uuid import UUID
 
@@ -11,7 +11,7 @@ from gf_dashboard.application.catalog import DungeonCatalogService
 from gf_dashboard.application.currency_rates import CurrencyRateService
 from gf_dashboard.application.market_quotes import MarketQuoteService
 from gf_dashboard.application.ports import FarmUnitOfWork, TowerUnitOfWork
-from gf_dashboard.application.sales import SaleService
+from gf_dashboard.application.sales import SaleCommand, SaleService
 from gf_dashboard.application.services import (
     ActivityCompletionService,
     DashboardLayoutService,
@@ -21,9 +21,12 @@ from gf_dashboard.application.services import (
 from gf_dashboard.application.tower import TowerDropInput, TowerSessionService
 from gf_dashboard.domain.errors import ConflictError, DomainError, NotFoundError, ValidationError
 from gf_dashboard.domain.value_objects import EntityId, Gold, WorkspaceId
+from gf_dashboard.infrastructure.autostart import WindowsAutostartService
+from gf_dashboard.infrastructure.daily_operations import SqliteDailyOperations
 from gf_dashboard.infrastructure.dashboard_reader import SqliteDashboardReader
 from gf_dashboard.infrastructure.in_memory import SystemClock, UUIDGenerator
 from gf_dashboard.infrastructure.persistence import SqliteDatabase
+from gf_dashboard.infrastructure.sales_ledger import SqliteSaleLedger
 from gf_dashboard.infrastructure.sqlite_repositories import SqliteUnitOfWork
 
 
@@ -52,6 +55,14 @@ class AppBridge(QObject):
                     request_id,
                     {"message": "pong", "runtime": "desktop", "bridgeVersion": 1},
                 )
+            if method == "system.getAutostart":
+                svc = self._autostart_service or WindowsAutostartService()
+                return self._success(request_id, {"enabled": svc.is_enabled()})
+            if method == "system.setAutostart":
+                enabled = self._required_bool(payload, "enabled")
+                svc = self._autostart_service or WindowsAutostartService()
+                autostart_result = svc.set_enabled(enabled)
+                return self._success(request_id, {"enabled": autostart_result})
             if method == "dashboard.today":
                 if self._dashboard_reader is None:
                     return self._error(
@@ -103,6 +114,12 @@ class AppBridge(QObject):
                                 "accountName": character.account_name,
                                 "completedDungeons": character.completed_dungeons,
                                 "selectedDungeons": character.selected_dungeons,
+                                "dailyMissionCompleted": character.daily_mission_completed,
+                                "vipExpiresAt": (
+                                    character.vip_expires_at.isoformat()
+                                    if character.vip_expires_at
+                                    else None
+                                ),
                             }
                             for character in characters
                         ],
@@ -127,6 +144,7 @@ class AppBridge(QObject):
                             "recentDrops": [],
                             "monthlyGold": [],
                             "monthlyGoldTotal": 0,
+                            "pveBagsEarnedToday": 0,
                         },
                     )
                 return self._success(
@@ -153,6 +171,7 @@ class AppBridge(QObject):
                         ],
                         "monthlyGoldTotal": overview.monthly_gold_total.amount,
                         "earnedGoldToday": overview.earned_gold_today.amount,
+                        "pveBagsEarnedToday": overview.pve_bags_earned_today,
                         "todaySalesMinor": overview.today_sales_minor,
                     },
                 )
@@ -442,6 +461,7 @@ class AppBridge(QObject):
                                 "towerCompleted": day.tower_completed,
                                 "towerTotal": day.tower_total,
                                 "dropsCount": day.drops_count,
+                                "routineDurationSeconds": day.routine_duration_seconds,
                             }
                             for day in days
                         ],
@@ -479,6 +499,7 @@ class AppBridge(QObject):
                         "runsCompleted": detail.runs_completed,
                         "goldEarned": detail.gold_earned.amount,
                         "pveBagsEarned": detail.pve_bags_earned,
+                        "routineDurationSeconds": detail.routine_duration_seconds,
                         "characters": [
                             {
                                 "id": ch.character_id,
@@ -585,25 +606,158 @@ class AppBridge(QObject):
                 orig_amount = self._required_int(payload, "originalAmountMinor", minimum=1)
                 currency = self._required_string(payload, "currency")
                 exchange_rate = self._required_int(payload, "exchangeRateMicros", minimum=1)
-                real_amount = self._required_int(payload, "realAmountMinor", minimum=1)
+                rate_source = self._required_string(payload, "exchangeRateSource")
+                idempotency_key = UUID(self._required_string(payload, "idempotencyKey"))
                 sold_at_str = payload.get("soldAt")
                 sold_at = (
                     datetime.fromisoformat(sold_at_str)
                     if isinstance(sold_at_str, str) and sold_at_str.strip()
-                    else None
+                    else datetime.now(UTC)
                 )
-                sale_res = SaleService(self._required_database()).record_sale(
-                    self._default_workspace_id(),
-                    sale_type=sale_type,
-                    item_description=item_desc,
-                    quantity=quantity,
-                    original_amount_minor=orig_amount,
-                    currency=currency,
-                    exchange_rate_micros=exchange_rate,
-                    real_amount_minor=real_amount,
-                    sold_at=sold_at,
+                sale_res = SaleService(SqliteSaleLedger(self._required_database())).record_sale(
+                    SaleCommand(
+                        workspace_id=self._default_workspace_id(),
+                        idempotency_key=idempotency_key,
+                        sale_type=sale_type,
+                        item_description=item_desc,
+                        quantity=quantity,
+                        original_amount_minor=orig_amount,
+                        currency=currency,
+                        exchange_rate_micros=exchange_rate,
+                        exchange_rate_source=rate_source,
+                        sold_at=sold_at,
+                    )
                 )
-                return self._success(request_id, sale_res)
+                return self._success(
+                    request_id,
+                    {
+                        "saleId": sale_res.sale_id,
+                        "realAmountMinor": sale_res.real_amount_minor,
+                        "originalAmountMinor": sale_res.original_amount_minor,
+                        "currency": sale_res.currency,
+                        "exchangeRateMicros": sale_res.exchange_rate_micros,
+                        "exchangeRateSource": sale_res.exchange_rate_source,
+                        "soldAt": sale_res.sold_at.isoformat(),
+                        "alreadyRecorded": sale_res.already_recorded,
+                    },
+                )
+            if method == "dashboard.setDailyMission":
+                character_id = str(self._entity_id(payload, "characterId"))
+                completed = self._required_bool(payload, "completed")
+                activity_date = self._activity_date(payload)
+                daily_mission_completed = SqliteDailyOperations(
+                    self._required_database()
+                ).set_character_daily_mission(
+                    str(self._default_workspace_id()), character_id, activity_date, completed
+                )
+                return self._success(request_id, {"completed": daily_mission_completed})
+            if method == "vip.save":
+                character_id = str(self._entity_id(payload, "characterId"))
+                paid_gold = self._required_int(payload, "paidGold", minimum=1)
+                remaining_days = self._required_int(payload, "remainingDays", minimum=0)
+                remaining_hours = self._required_int(payload, "remainingHours", minimum=0)
+                expires_at = SqliteDailyOperations(self._required_database()).save_character_vip(
+                    str(self._default_workspace_id()),
+                    character_id,
+                    paid_gold,
+                    remaining_days,
+                    remaining_hours,
+                )
+                return self._success(
+                    request_id, {"expiresAt": expires_at.isoformat(), "paidGold": paid_gold}
+                )
+            if method == "expenses.record":
+                category = self._required_string(payload, "category")
+                amount_gold = self._required_int(payload, "amountGold", minimum=1)
+                occurred_on = date.fromisoformat(self._required_string(payload, "occurredOn"))
+                description = payload.get("description")
+                if description is not None and not isinstance(description, str):
+                    raise ValueError("description must be a string")
+                transaction_id = SqliteDailyOperations(self._required_database()).record_expense(
+                    str(self._default_workspace_id()),
+                    category,
+                    amount_gold,
+                    datetime.combine(occurred_on, datetime.min.time(), tzinfo=UTC),
+                    description,
+                )
+                return self._success(request_id, {"transactionId": transaction_id})
+            if method == "expenses.history":
+                expenses = SqliteDailyOperations(self._required_database()).list_manual_expenses(
+                    str(self._default_workspace_id())
+                )
+                return self._success(
+                    request_id,
+                    {
+                        "expenses": [
+                            {
+                                "id": expense["id"],
+                                "category": expense["category"],
+                                "amountGold": expense["amount_gold"],
+                                "occurredAt": expense["occurred_at"],
+                                "description": expense["description"],
+                                "createdAt": expense["created_at"],
+                            }
+                            for expense in expenses
+                        ]
+                    },
+                )
+            if method == "expenses.update":
+                transaction_id = str(self._entity_id(payload, "transactionId"))
+                category = self._required_string(payload, "category")
+                amount_gold = self._required_int(payload, "amountGold", minimum=1)
+                occurred_on = date.fromisoformat(self._required_string(payload, "occurredOn"))
+                description = payload.get("description")
+                if description is not None and not isinstance(description, str):
+                    raise ValueError("description must be a string")
+                replacement_id = SqliteDailyOperations(
+                    self._required_database()
+                ).update_manual_expense(
+                    str(self._default_workspace_id()),
+                    transaction_id,
+                    category,
+                    amount_gold,
+                    datetime.combine(occurred_on, datetime.min.time(), tzinfo=UTC),
+                    description,
+                )
+                return self._success(request_id, {"transactionId": replacement_id})
+            if method == "expenses.void":
+                transaction_id = str(self._entity_id(payload, "transactionId"))
+                SqliteDailyOperations(self._required_database()).void_manual_expense(
+                    str(self._default_workspace_id()), transaction_id
+                )
+                return self._success(request_id, {"voided": True})
+            if method == "routine.current":
+                routine = SqliteDailyOperations(self._required_database()).get_work_routine(
+                    str(self._default_workspace_id())
+                )
+                return self._success(request_id, {"routine": routine})
+            if method == "routine.start":
+                routine = SqliteDailyOperations(self._required_database()).start_work_routine(
+                    str(self._default_workspace_id())
+                )
+                return self._success(request_id, routine)
+            if method == "routine.pause":
+                routine = SqliteDailyOperations(self._required_database()).pause_work_routine(
+                    str(self._default_workspace_id())
+                )
+                return self._success(request_id, routine)
+            if method == "routine.resume":
+                routine = SqliteDailyOperations(self._required_database()).resume_work_routine(
+                    str(self._default_workspace_id())
+                )
+                return self._success(request_id, routine)
+            if method == "routine.stop":
+                routine = SqliteDailyOperations(self._required_database()).stop_work_routine(
+                    str(self._default_workspace_id())
+                )
+                return self._success(request_id, routine)
+            if method == "reports.setMonthlyTarget":
+                target_month = self._required_string(payload, "targetMonth")
+                target_gold = self._required_int(payload, "targetGold", minimum=1)
+                value = SqliteDailyOperations(self._required_database()).set_monthly_target(
+                    str(self._default_workspace_id()), target_month, target_gold
+                )
+                return self._success(request_id, {"targetMonth": target_month, "targetGold": value})
             if method == "reports.overview":
                 if self._dashboard_reader is None:
                     return self._error(
@@ -627,12 +781,22 @@ class AppBridge(QObject):
                         "kpis": {
                             "monthlySalesMinor": reports.kpis.monthly_sales_minor,
                             "salesChangePercent": reports.kpis.sales_change_percent,
+                            "previousSalesMinor": reports.kpis.previous_sales_minor,
+                            "salesChangeStatus": reports.kpis.sales_change_status,
                             "monthlyFarmGold": reports.kpis.monthly_farm_gold.amount,
                             "farmGoldChangePercent": reports.kpis.farm_gold_change_percent,
+                            "previousFarmGold": reports.kpis.previous_farm_gold.amount,
+                            "farmGoldChangeStatus": reports.kpis.farm_gold_change_status,
                             "allTimeFarmGold": reports.kpis.all_time_farm_gold.amount,
                             "dailyAverageGold": reports.kpis.daily_average_gold.amount,
-                            "monthlyPveBagsSold": reports.kpis.monthly_pve_bags_sold,
-                            "pveBagsChangePercent": reports.kpis.pve_bags_change_percent,
+                            "monthlyPveBagsEarned": reports.kpis.monthly_pve_bags_earned,
+                            "pveBagsEarnedChangePercent": (
+                                reports.kpis.pve_bags_earned_change_percent
+                            ),
+                            "previousPveBagsEarned": reports.kpis.previous_pve_bags_earned,
+                            "pveBagsEarnedChangeStatus": reports.kpis.pve_bags_change_status,
+                            "isPartialMonth": reports.kpis.is_partial_month,
+                            "comparisonPeriodDays": reports.kpis.comparison_period_days,
                         },
                         "dailyEvolution": [
                             {
@@ -653,6 +817,12 @@ class AppBridge(QObject):
                                 reports.monthly_comparison.current_month_gold.amount
                             ),
                             "growthPercent": reports.monthly_comparison.growth_percent,
+                            "growthStatus": reports.monthly_comparison.growth_status,
+                            "isPartial": reports.monthly_comparison.is_partial,
+                            "previousPeriodLabel": (
+                                reports.monthly_comparison.previous_period_label
+                            ),
+                            "currentPeriodLabel": reports.monthly_comparison.current_period_label,
                         },
                         "cumulativeHistory": [
                             {
@@ -669,6 +839,14 @@ class AppBridge(QObject):
                                 reports.financial_summary.gold_converted_total.amount
                             ),
                             "averageTicketMinor": reports.financial_summary.average_ticket_minor,
+                            "expensesGold": reports.financial_summary.expenses_gold.amount,
+                            "vipExpensesGold": reports.financial_summary.vip_expenses_gold.amount,
+                            "towerExpensesGold": (
+                                reports.financial_summary.tower_expenses_gold.amount
+                            ),
+                            "manualExpensesGold": (
+                                reports.financial_summary.manual_expenses_gold.amount
+                            ),
                         },
                         "recentSales": [
                             {
@@ -681,9 +859,56 @@ class AppBridge(QObject):
                             }
                             for sale in reports.recent_sales
                         ],
+                        "recentMovements": [
+                            {
+                                "id": movement.id,
+                                "kind": movement.kind,
+                                "title": movement.title,
+                                "detail": movement.detail,
+                                "occurredAt": movement.occurred_at.isoformat(),
+                                "goldAmount": (
+                                    movement.gold_amount.amount
+                                    if movement.gold_amount is not None
+                                    else None
+                                ),
+                                "pveBags": movement.pve_bags,
+                                "amountMinor": movement.amount_minor,
+                            }
+                            for movement in reports.recent_movements
+                        ],
+                        "workRoutineHistory": {
+                            "monthSeconds": reports.work_routine_history.month_seconds,
+                            "weekSeconds": reports.work_routine_history.week_seconds,
+                            "previousWeekSeconds": (
+                                reports.work_routine_history.previous_week_seconds
+                            ),
+                            "monthSessionCount": (reports.work_routine_history.month_session_count),
+                            "activeDaysInMonth": (
+                                reports.work_routine_history.active_days_in_month
+                            ),
+                            "recentSessions": [
+                                {
+                                    "id": session.id,
+                                    "startedAt": session.started_at.isoformat(),
+                                    "finishedAt": session.finished_at.isoformat(),
+                                    "elapsedSeconds": session.elapsed_seconds,
+                                }
+                                for session in reports.work_routine_history.recent_sessions
+                            ],
+                        },
                         "monthlyTarget": {
+                            "targetMonth": reports.monthly_target.target_month,
                             "targetGold": reports.monthly_target.target_gold.amount,
                             "currentGold": reports.monthly_target.current_gold.amount,
+                            "currentPveBags": reports.monthly_target.current_pve_bags,
+                            "pveBagUnitValueGold": (
+                                reports.monthly_target.pve_bag_unit_value.amount
+                                if reports.monthly_target.pve_bag_unit_value
+                                else None
+                            ),
+                            "currentTotalValueGold": (
+                                reports.monthly_target.current_total_value_gold.amount
+                            ),
                             "percentage": reports.monthly_target.percentage,
                             "remainingGold": reports.monthly_target.remaining_gold.amount,
                             "daysRemaining": reports.monthly_target.days_remaining,
@@ -697,6 +922,16 @@ class AppBridge(QObject):
                                 "goldEarned": tc.gold_earned.amount,
                             }
                             for tc in reports.top_characters
+                        ],
+                        "monthlySalesHistory": [
+                            {
+                                "monthKey": m.month_key,
+                                "monthLabel": m.month_label,
+                                "salesAmountMinor": m.sales_amount_minor,
+                                "salesCount": m.sales_count,
+                                "isPartial": m.is_partial,
+                            }
+                            for m in reports.monthly_sales_history
                         ],
                     },
                 )
@@ -794,8 +1029,12 @@ class AppBridge(QObject):
         )
 
     def __init__(
-        self, database: SqliteDatabase | None = None, parent: QObject | None = None
+        self,
+        database: SqliteDatabase | None = None,
+        parent: QObject | None = None,
+        autostart_service: WindowsAutostartService | None = None,
     ) -> None:
         super().__init__(parent)
         self._database = database
         self._dashboard_reader = SqliteDashboardReader(database) if database else None
+        self._autostart_service = autostart_service

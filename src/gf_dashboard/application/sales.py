@@ -1,96 +1,82 @@
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from uuid import uuid4
+from typing import Protocol
+from uuid import UUID
 
+from gf_dashboard.domain.errors import ValidationError
 from gf_dashboard.domain.value_objects import WorkspaceId
-from gf_dashboard.infrastructure.persistence import SqliteDatabase
+
+SUPPORTED_SALE_TYPES = frozenset({"gold", "pve_bag", "item"})
+
+
+@dataclass(frozen=True, slots=True)
+class SaleCommand:
+    workspace_id: WorkspaceId
+    idempotency_key: UUID
+    sale_type: str
+    item_description: str
+    quantity: int
+    original_amount_minor: int
+    currency: str
+    exchange_rate_micros: int
+    exchange_rate_source: str
+    sold_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class SaleResult:
+    sale_id: str
+    real_amount_minor: int
+    original_amount_minor: int
+    currency: str
+    exchange_rate_micros: int
+    exchange_rate_source: str
+    sold_at: datetime
+    already_recorded: bool = False
+
+
+class SaleLedger(Protocol):
+    def record(self, command: SaleCommand, real_amount_minor: int) -> SaleResult: ...
 
 
 class SaleService:
-    def __init__(self, database: SqliteDatabase) -> None:
-        self._database = database
+    """Validates a commercial fact and delegates its atomic persistence to a ledger."""
 
-    def record_sale(
-        self,
-        workspace_id: WorkspaceId,
-        sale_type: str,
-        item_description: str,
-        quantity: int,
-        original_amount_minor: int,
-        currency: str,
-        exchange_rate_micros: int,
-        real_amount_minor: int,
-        sold_at: datetime | None = None,
-    ) -> dict[str, str | int]:
-        if sold_at is None:
-            sold_at = datetime.now(UTC)
+    def __init__(self, ledger: SaleLedger) -> None:
+        self._ledger = ledger
 
-        sold_at_str = sold_at.isoformat()
-        now_str = datetime.now(UTC).isoformat()
-        sale_id = str(uuid4())
-        tx_id = str(uuid4())
-
-        gold_qty = quantity if sale_type == "gold" else 0
-
-        connection = self._database.connect()
-        try:
-            # 1. Insert into sales
-            connection.execute(
-                """
-                INSERT INTO sales (
-                    id, workspace_id, sale_type, status, gold_quantity,
-                    real_amount_minor, currency, buyer_reference, sold_at,
-                    fees_minor, notes, created_at, updated_at,
-                    original_amount_minor, exchange_rate_micros, item_quantity
-                ) VALUES (?, ?, ?, 'completed', ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, ?)
-                """,
-                (
-                    sale_id,
-                    str(workspace_id),
-                    sale_type,
-                    gold_qty,
-                    real_amount_minor,
-                    currency.upper(),
-                    item_description,
-                    sold_at_str,
-                    now_str,
-                    now_str,
-                    original_amount_minor,
-                    exchange_rate_micros,
-                    quantity,
-                ),
-            )
-
-            # 2. Insert into transactions
-            connection.execute(
-                """
-                INSERT INTO transactions (
-                    id, workspace_id, type, category, amount_gold, amount_minor,
-                    currency, sale_id, occurred_at, description, created_at, updated_at
-                ) VALUES (?, ?, 'income', 'sale', ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    tx_id,
-                    str(workspace_id),
-                    gold_qty,
-                    real_amount_minor,
-                    currency.upper(),
-                    sale_id,
-                    sold_at_str,
-                    f"Venda de {item_description} ({quantity})",
-                    now_str,
-                    now_str,
-                ),
-            )
-
-            connection.commit()
-
-            return {
-                "saleId": sale_id,
-                "realAmountMinor": real_amount_minor,
-                "originalAmountMinor": original_amount_minor,
-                "currency": currency.upper(),
-                "exchangeRateMicros": exchange_rate_micros,
-                "soldAt": sold_at_str,
-            }
-        finally:
-            connection.close()
+    def record_sale(self, command: SaleCommand) -> SaleResult:
+        sale_type = command.sale_type.strip().lower()
+        if sale_type not in SUPPORTED_SALE_TYPES:
+            raise ValidationError("Tipo de venda inválido")
+        if not command.item_description.strip():
+            raise ValidationError("Descrição da venda é obrigatória")
+        if isinstance(command.quantity, bool) or command.quantity <= 0:
+            raise ValidationError("Quantidade da venda deve ser inteira e positiva")
+        if isinstance(command.original_amount_minor, bool) or command.original_amount_minor <= 0:
+            raise ValidationError("Valor recebido deve ser positivo em unidade mínima")
+        currency = command.currency.strip().upper()
+        if len(currency) != 3 or not currency.isalpha():
+            raise ValidationError("Moeda deve usar código ISO de três letras")
+        if isinstance(command.exchange_rate_micros, bool) or command.exchange_rate_micros <= 0:
+            raise ValidationError("Cotação deve ser positiva")
+        if not command.exchange_rate_source.strip():
+            raise ValidationError("Origem da cotação é obrigatória")
+        if command.sold_at.tzinfo is None or command.sold_at.utcoffset() is None:
+            raise ValidationError("Data da venda deve incluir timezone")
+        normalized = SaleCommand(
+            command.workspace_id,
+            command.idempotency_key,
+            sale_type,
+            command.item_description.strip(),
+            command.quantity,
+            command.original_amount_minor,
+            currency,
+            command.exchange_rate_micros,
+            command.exchange_rate_source.strip(),
+            command.sold_at.astimezone(UTC),
+        )
+        real_amount_minor = (
+            normalized.original_amount_minor * normalized.exchange_rate_micros + 500_000
+        ) // 1_000_000
+        return self._ledger.record(normalized, real_amount_minor)

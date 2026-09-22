@@ -27,6 +27,7 @@ vault/.obsidian/
 build/
 dist/
 *.spec
+!gf_farmer.spec
 
 .idea/
 .vscode/

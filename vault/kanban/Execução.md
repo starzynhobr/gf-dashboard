@@ -7,13 +7,14 @@ tipo: kanban
 
 - [ ] UI-002 — Criar janela sem moldura e controles Windows
 - [ ] UI-005 — Virtualizar lista de personagens e validar base grande
-- [ ] DOM-001 — Implementar perfis, contas e personagens nos repositórios SQLite
 - [ ] DOM-004 — Implementar sessões, produção e drops opcionais nos repositórios SQLite
 - [ ] DOM-005 — Implementar regras versionadas nos repositórios SQLite
+- [ ] GME-010 — Fama dos Mercados como estimativa calibrável, após consolidar medições de ganhos e custos
 
 ## Em andamento
 
 - [ ] Etapa 10 — Exportação de relatórios CSV/JSON (`EXP-001`)
+- [ ] REP-001 e REP-002 — Completar métricas de tempo/conclusão, inventário e filtros/exportação
 - [ ] Etapas 5–6 — Fechar responsividade, shell sem moldura, virtualização e fallback textual do gráfico
 
 ## Bloqueado
@@ -22,8 +23,19 @@ tipo: kanban
 
 ## Concluído
 
-- [x] Etapa 10 — Registro de Vendas multimoeda (`FIN-001`), cotações Frankfurter API e atualização do Resumo do Dia ("Ouro ganho" + "Vendido hoje")
-- [x] Etapa 10 — Relatórios e Analytics (`REP-001`, `REP-002`) conforme imagem de referência com KPIs, gráficos Recharts, resumo financeiro e ranking
+- [x] PKG-001 e PKG-002 — Empacotamento Windows com PyInstaller, Qt WebEngine, assets React e instalador oficial Inno Setup 6 que preserva `%LOCALAPPDATA%`
+- [x] FIN-001 — Registro de vendas multimoeda idempotente, com valor original, conversão BRL calculada no backend e snapshot da origem da cotação
+- [x] FIN-002 — Despesa manual em gold no ledger financeiro e detalhamento mensal de VIP, Torre e outras despesas
+- [x] FIN-003 — Histórico, correção por substituição e estorno auditável de despesas manuais
+- [x] TIM-001 — Sessão de rotina persistida na Home com iniciar, pausar, retomar e encerrar
+- [x] TIM-002 — Histórico e comparação de tempo de rotina nos relatórios
+- [x] REP-004, UI-015 — Meta mensal por gold equivalente (gold + Sacos PvE) e calculadora local de BRL
+- [x] UI-016 — Abertura imediata da calculadora sem consulta de câmbio bloqueante; taxas indicativas editáveis
+- [x] REP-005 — Feed de últimas movimentações nos relatórios para conferência rápida
+- [x] REP-006 — Comparação mensal por período equivalente e histórico de vendas nos relatórios
+- [x] DOM-009, UI-013 — Diária operacional por personagem/data com marcação rápida na Home, sem impacto financeiro
+- [x] CFG-004, REP-003 — Meta mensal persistida e atalhos de relatórios com destinos reais
+- [x] DOM-010, UI-014 — VIP por personagem com dias/horas restantes, ajuste de validade e despesa única em gold
 - [x] Etapa 9 — Histórico de farm (`HIS-001`), cotação rápida do Saco PvE (`DOM-008`, `UI-012`) e estimativa dinâmica no card de ouro
 
 - [x] FND-001 — Inicializar Git, pyproject, lockfile e estrutura Python
@@ -48,7 +60,8 @@ tipo: kanban
 - [x] UI-008 — Resumo por personagem com seleção global e ciclos completos de cinco rodadas
 - [x] UI-010, UI-011 e CFG-003 — Registro/host de módulos, lazy loading, visibilidade persistida e restauração padrão
 - [x] MGT-002 — Seleção global da rotina de dungeons, herdada por novos personagens
-- [x] HST-001 — Histórico de farm com filtros por período, conta e personagem, listagem de dias e detalhamento completo
+- [x] HIS-001 — Histórico de farm com filtros por período, conta e personagem, listagem de dias e detalhamento completo
+- [x] DOM-001 — Cadastro e edição de contas/personagens nos repositórios SQLite
 - [x] DOM-008 & UI-012 — Modal e botão de cotação do Saco PvE no Farm de Hoje ao lado de Registrar Torre com recálculo automático
 
 %% kanban:settings

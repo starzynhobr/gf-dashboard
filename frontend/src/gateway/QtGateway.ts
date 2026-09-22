@@ -27,12 +27,23 @@ export class QtGateway implements AppGateway {
     return this.invoke<TodayActivityResult>("dashboard.todayActivity", {});
   }
 
-  getCharacterDay(characterId: string): Promise<CharacterDayResult> {
-    return this.invoke<CharacterDayResult>("dashboard.characterDay", { characterId });
+  getCharacterDay(characterId: string, activityDate?: string): Promise<CharacterDayResult> {
+    return this.invoke<CharacterDayResult>("dashboard.characterDay", {
+      characterId,
+      ...(activityDate ? { activityDate } : {}),
+    });
   }
 
-  saveCharacterDay(characterId: string, completedActivityIds: string[]): Promise<{ completedDungeons: number; gold: number; pveBags: number }> {
-    return this.invoke("dashboard.saveCharacterDay", { characterId, completedActivityIds });
+  saveCharacterDay(characterId: string, completedActivityIds: string[], activityDate: string): Promise<{ completedDungeons: number; gold: number; pveBags: number }> {
+    return this.invoke("dashboard.saveCharacterDay", { characterId, completedActivityIds, activityDate });
+  }
+
+  setCharacterDailyMission(characterId: string, completed: boolean): Promise<{ completed: boolean }> {
+    return this.invoke("dashboard.setDailyMission", { characterId, completed });
+  }
+
+  saveCharacterVip(characterId: string, paidGold: number, remainingDays: number, remainingHours: number): Promise<{ expiresAt: string; paidGold: number }> {
+    return this.invoke("vip.save", { characterId, paidGold, remainingDays, remainingHours });
   }
 
   getManagementOverview(): Promise<ManagementOverviewResult> {
@@ -95,12 +106,49 @@ export class QtGateway implements AppGateway {
     return this.invoke("reports.overview", { referenceDate });
   }
 
+  setMonthlyTarget(targetMonth: string, targetGold: number): Promise<{ targetMonth: string; targetGold: number }> {
+    return this.invoke("reports.setMonthlyTarget", { targetMonth, targetGold });
+  }
+
+  recordExpense(input: import("./AppGateway").ExpenseRegistrationInput): Promise<{ transactionId: string }> {
+    return this.invoke("expenses.record", { ...input });
+  }
+
+  getExpenseHistory(): Promise<{ expenses: import("./AppGateway").ExpenseHistoryRow[] }> {
+    return this.invoke("expenses.history", {});
+  }
+
+  updateExpense(transactionId: string, input: import("./AppGateway").ExpenseRegistrationInput): Promise<{ transactionId: string }> {
+    return this.invoke("expenses.update", { transactionId, ...input });
+  }
+
+  voidExpense(transactionId: string): Promise<{ voided: boolean }> {
+    return this.invoke("expenses.void", { transactionId });
+  }
+
+  getWorkRoutine(): Promise<{ routine: import("./AppGateway").WorkRoutineResult | null }> {
+    return this.invoke("routine.current", {});
+  }
+
+  startWorkRoutine(): Promise<import("./AppGateway").WorkRoutineResult> { return this.invoke("routine.start", {}); }
+  pauseWorkRoutine(): Promise<import("./AppGateway").WorkRoutineResult> { return this.invoke("routine.pause", {}); }
+  resumeWorkRoutine(): Promise<import("./AppGateway").WorkRoutineResult> { return this.invoke("routine.resume", {}); }
+  stopWorkRoutine(): Promise<import("./AppGateway").WorkRoutineResult> { return this.invoke("routine.stop", {}); }
+
   getCurrencyRate(baseCurrency: string, quoteCurrency?: string, date?: string): Promise<import("./AppGateway").CurrencyRateResult> {
     return this.invoke("currency.getRate", { baseCurrency, quoteCurrency, date });
   }
 
   recordSale(input: import("./AppGateway").SaleRegistrationInput): Promise<import("./AppGateway").SaleRegistrationResult> {
     return this.invoke("sales.record", { ...input });
+  }
+
+  getAutostart(): Promise<{ enabled: boolean }> {
+    return this.invoke("system.getAutostart", {});
+  }
+
+  setAutostart(enabled: boolean): Promise<{ enabled: boolean }> {
+    return this.invoke("system.setAutostart", { enabled });
   }
 
   private async invoke<T>(method: string, payload: Record<string, unknown>): Promise<T> {

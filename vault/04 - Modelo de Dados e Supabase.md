@@ -1,7 +1,7 @@
 ---
 tipo: dados
 status: ativa-v1
-atualizado_em: 2026-08-26
+atualizado_em: 2026-08-27
 ---
 
 # Modelo de Dados e Supabase
@@ -56,7 +56,7 @@ Persistir **fatos e contexto histórico**, não somente o estado atual nem métr
 | `tower_session_details` | Detalhe da sessão de Torre | `farm_session_id`, `guild_name_snapshot`, `opened_at`, `entry_cost_gold_snapshot`, `completed`, `completed_at`, `rules_version_id` |
 | `farm_session_items` | Item obtido numa sessão | `farm_session_id`, `item_id`, `quantity`, `estimated_unit_value_at_drop`, `obtained_at` |
 | `inventory_movements` | Ledger de estoque | `item_id`, `character_id`, `farm_session_id`, `movement_type`, `quantity_delta`, `unit_value_snapshot`, `occurred_at`, `notes` |
-| `sales` | Evento comercial | `sale_type`, `status`, `gold_quantity`, `real_amount_minor`, `currency`, `buyer_reference`, `sold_at`, `fees_minor`, `notes` |
+| `sales` | Evento comercial | `sale_type`, `status`, `gold_quantity`, `item_description`, `item_quantity`, `original_amount_minor`, `currency`, `exchange_rate_micros`, `exchange_rate_source`, `real_amount_minor`, `converted_currency`, `idempotency_key`, `sold_at`, `fees_minor`, `notes` |
 | `transactions` | Ledger financeiro | `type`, `category`, `amount_gold`, `amount_minor`, `currency`, `character_id`, `item_id`, `sale_id`, `farm_session_id`, `occurred_at`, `description`, `notes` |
 
 ### Sistema
@@ -70,6 +70,7 @@ Persistir **fatos e contexto histórico**, não somente o estado atual nem métr
 | `dashboard_layouts` | Layout salvo do dashboard | `name`, `is_default`, `layout_version`, `created_at`, `updated_at` |
 | `dashboard_layout_items` | Estado de cada módulo | `layout_id`, `module_key`, `enabled`, `sort_order`, `region`, `column_span`, `row_span`, `settings_json` |
 | `routine_schedules` | Rotina/lembrete configurável futuro | `name`, `start_time_local`, `timezone`, `weekdays_mask`, `notification_offset_minutes`, `enabled` |
+| `work_routine_sessions` | Tempo operacional iniciado pelo usuário | `status`, `started_at`, `paused_at`, `finished_at`, `accumulated_seconds`, `notes` |
 
 `sync_queue`, `sync_state`, usuários remotos e memberships não entram na migration inicial. Serão adicionados por migration quando a sincronização tiver caso de uso validado; UUIDs, `workspace_id`, timestamps e snapshots já preservam o caminho de migração sem criar infraestrutura dormente.
 
@@ -78,6 +79,8 @@ Persistir **fatos e contexto histórico**, não somente o estado atual nem métr
 - `001_initial.sql` cria as entidades, restrições e chaves estrangeiras descritas acima.
 - `002_indexes.sql` cria índices para recortes por workspace/data, personagem, atividade, item, cotação e transação.
 - `003_activity_reward_pve_bags.sql` adiciona o snapshot de Sacos PvE por missão, necessário para persistir a regra confirmada de uma unidade por rodada.
+- `004_currency_rates_and_sale_enhancements.sql` introduz cotações monetárias e snapshots de valor original/conversão das vendas.
+- `005_sales_integrity.sql` adiciona descrição independente do comprador, origem da cotação, moeda convertida e chave de idempotência por workspace.
 - O runner registra versão, nome, checksum, instante UTC e versão do aplicativo em `schema_migrations`.
 - Antes de aplicar migrations pendentes a um banco existente, ele cria cópia consistente via backup SQLite, valida `quick_check` e registra metadata com checksum. A restauração preserva a cópia atual como arquivo de recuperação.
 
@@ -156,6 +159,18 @@ Ao marcar uma dungeon inteira como feita, o caso de uso gera cinco `activity_com
 6. Registrar versão e checksum.
 7. Executar `foreign_key_check` e teste de integridade.
 8. Em falha, preservar banco e logs, restaurar cópia válida ou iniciar em modo seguro; nunca continuar silenciosamente.
+
+## Fatos operacionais adicionais
+
+`character_daily_missions` registra o checklist agregado de diárias por personagem e dia operacional. O fato pertence ao workspace, referencia o personagem e guarda somente `completed_at`; não se mistura a `daily_activity_entries` porque não representa uma dungeon, recompensa, consumo ou run.
+
+`monthly_gold_targets` preserva uma meta de gold por `workspace_id` e mês no formato `YYYY-MM`. A meta é configurável e histórica: editar a meta de um mês não altera metas de outros meses nem fatos de farm já registrados. O leitor usa 25.000.000 gold apenas como fallback visual quando ainda não existe uma meta persistida para o mês.
+
+`character_vip_subscriptions` preserva ativações de VIP por personagem, valor pago e início/expiração com precisão de data e hora em UTC (`activated_at` e `expires_at`). Os campos legados de data permanecem durante a migração compatível. Ajustar o tempo restante atualiza somente a vigência da assinatura ativa e não cria nova despesa. A despesa correspondente usa o ledger existente em `transactions` com `type = expense` e `category = vip`; a abertura de Torre permanece derivável de `tower_session_details`.
+
+As despesas manuais não recebem tabela própria: são fatos `transactions` com `type = expense`, categoria controlada e `amount_gold` inteiro. Ao corrigir uma despesa, o lançamento anterior recebe `deleted_at`, um substituto é inserido e o `audit_log` registra antes/depois; estorno segue a mesma preservação. `work_routine_sessions` mantém no máximo uma sessão aberta por workspace; pausas consolidam o tempo decorrido e a retomada inicia novo trecho, sem depender do timer da interface. Relatórios de rotina usam somente sessões `completed`, `created_at` como início original, `finished_at` como término e `accumulated_seconds` como duração autoritativa.
+
+A meta mensal continua persistida como `target_gold`, agora interpretada como gold equivalente: o read model soma `activity_completions.gold_reward_snapshot` e a quantidade de Sacos PvE ganhos multiplicada pela cotação atual. O valor dos sacos é prospectivo e pode mudar quando sua cotação muda; os fatos de produção não são alterados. A calculadora de BRL é somente apresentação e não persiste dados.
 
 ## Compatibilidade SQLite → Postgres/Supabase futuro
 
