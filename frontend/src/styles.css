@@ -245,6 +245,11 @@ input, select { font: inherit; }
 .secondary-button { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border: 1px solid rgba(151,178,204,.16); border-radius: 9px; color: #b1bfcd; background: rgba(255,255,255,.025); cursor: pointer; }
 .secondary-button:hover:not(:disabled) { color: #edf3fb; border-color: rgba(151,178,204,.3); background: rgba(255,255,255,.045); }
 .secondary-button:disabled { opacity: .45; cursor: not-allowed; }
+.bulk-complete-button { min-height: 38px; color: #86efac; border-color: rgba(52, 211, 153, .24); }
+.bulk-complete-button:hover:not(:disabled) { color: #d1fae5; border-color: rgba(52, 211, 153, .48); background: rgba(16, 185, 129, .08); }
+.monthly-chart-tooltip { display: grid; gap: 4px; min-width: 175px; padding: 9px 11px; border: 1px solid #294054; border-radius: 8px; color: #cbd8e5; background: #0c2232; box-shadow: 0 8px 20px rgba(0,0,0,.22); font-size: 11px; }
+.monthly-chart-tooltip strong { color: #f1f5f9; font-weight: 700; }
+.monthly-chart-tooltip small { color: #91a6b9; font-size: 10px; }
 .tower-cost { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px; padding: 14px 16px; border: 1px solid rgba(238, 194, 51, .18); border-radius: 13px; background: rgba(238, 194, 51, .055); }
 .tower-cost > svg { color: #f4ca31; }
 .tower-cost div { display: grid; gap: 2px; }

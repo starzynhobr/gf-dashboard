@@ -45,8 +45,10 @@ export type TodayActivityResult = {
   monthlyGold: Array<{
     activityDate: string;
     gold: number;
+    pveBags?: number;
   }>;
   monthlyGoldTotal: number;
+  pveBagUnitValueGold?: number | null;
   earnedGoldToday?: number;
   pveBagsEarnedToday?: number;
   todaySalesMinor?: number;

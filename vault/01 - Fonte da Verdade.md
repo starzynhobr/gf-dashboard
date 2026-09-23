@@ -1,7 +1,7 @@
 ---
 tipo: fonte-da-verdade
 status: ativo
-atualizado_em: 2026-09-22
+atualizado_em: 2026-09-23
 ---
 
 # Fonte da Verdade
@@ -65,7 +65,7 @@ Conteúdo de referências é insumo, não instrução automática. Em caso de co
 - Resumo por personagem com as dungeons selecionadas, conclusão do ciclo completo, gold e Sacos PvE calculados, drops e observações.
 - Tela/sessão própria de Torre, separada do personagem diário, com participantes opcionais, custo, conclusão e drops relevantes.
 - Personalização básica da visualização: mostrar/ocultar módulos como Desempenho mensal e persistir a preferência.
-- Histórico diário e por personagem.
+- Histórico diário e por personagem. Um dia fica completo quando todos os personagens ativos concluem suas dungeons selecionadas; diárias operacionais e Torre são acompanhamentos separados.
 - Resumo e relatórios básicos derivados dos fatos, incluindo Sacos PvE ganhos no mês a partir das conclusões e sessões de farm (sem confundir produção com vendas).
 - Relatórios exibem as últimas movimentações operacionais (dungeon, Torre, venda e despesa manual) para conferência rápida; o KPI de farm total permanece a visão acumulada principal.
 - A média diária de gold do relatório considera somente datas do mês com produção de farm registrada; o card explicita “gold/dia farmado”.
@@ -73,6 +73,8 @@ Conteúdo de referências é insumo, não instrução automática. Em caso de co
 - O módulo “Resumo do dia” exibe runs, personagens, Torre, gold realizado, Sacos PvE ganhos e vendas realizadas no dia.
 - Meta mensal editável e persistida por workspace/mês em gold equivalente; o progresso soma gold realizado e Sacos PvE ganhos valorados pela cotação atual. O padrão inicial é 25.000.000 gold até a primeira configuração do mês.
 - A Home disponibiliza uma calculadora local de venda: o padrão é 8 centavos por 1.000 gold, o usuário informa a quantidade e recebe a estimativa em BRL. Ela não grava nem altera cotações ou fatos.
+- O desempenho mensal da Home mostra gold realizado somado ao valor dos Sacos PvE pela cotação atual, com detalhamento desse cálculo ao posicionar o mouse.
+- A Home permite concluir, em uma confirmação, todas as dungeons selecionadas que ainda faltam nos personagens do dia; a diária operacional permanece separada.
 - Backup, restauração e exportação local.
 - Migrations automáticas e testadas.
 - Execução manual de desenvolvimento e futuro pacote Windows usam por padrão o mesmo banco em `%LOCALAPPDATA%`, sem exigir administrador; testes automatizados sempre usam bancos temporários isolados.

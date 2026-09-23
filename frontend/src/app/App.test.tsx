@@ -167,13 +167,46 @@ describe("App", () => {
       getTodayActivity: async () => ({
         state: "ready", runsCompleted: 5, towerCompleted: 1, towerTotal: 1,
         recentDrops: [{ itemName: "Drop raro", quantity: 2, obtainedAt: "2026-08-26T14:32:00" }],
-        monthlyGold: [{ activityDate: "2026-08-26", gold: 7000 }], monthlyGoldTotal: 7000,
+        monthlyGold: [{ activityDate: "2026-08-26", gold: 7000, pveBags: 5 }], monthlyGoldTotal: 13250, pveBagUnitValueGold: 1250,
       }),
     });
     render(<App gateway={gateway} />);
     expect(await screen.findByText("2× Drop raro")).toBeInTheDocument();
-    expect(screen.getByText("7.000")).toBeInTheDocument();
+    expect(screen.getByText("13.250")).toBeInTheDocument();
+    expect(screen.getByText("Gold + Sacos PvE")).toBeInTheDocument();
     expect(screen.getAllByText("1 / 1")).toHaveLength(2);
+  });
+
+  it("completes pending characters in one confirmed action and leaves completed ones alone", async () => {
+    const saveCharacterDay = vi.fn(async (_characterId: string, completedActivityIds: string[]) => ({ completedDungeons: completedActivityIds.length, gold: 7000, pveBags: 5 }));
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const gateway = createGateway({
+      getToday: async () => ({ state: "ready", activityDate: "2026-08-26", selectedDungeons: 2, estimatedGold: 14000, estimatedPveBags: 10, estimatedPveBagMarketValue: 10000 }),
+      getTodayCharacters: async () => ({
+        state: "ready",
+        characters: [
+          { id: "done", name: "Pronto", className: "Druida", accountName: "Conta", completedDungeons: 1, selectedDungeons: 1 },
+          { id: "pending", name: "Pendente", className: "Druida", accountName: "Conta", completedDungeons: 0, selectedDungeons: 1 },
+        ],
+      }),
+      getCharacterDay: async (characterId) => ({
+        characterId,
+        characterName: characterId,
+        className: "Druida",
+        accountName: "Conta",
+        activityDate: "2026-08-26",
+        dungeons: [{ characterActivityId: `ca-${characterId}`, activityId: `dungeon-${characterId}`, name: "Dungeon", completed: false, targetAmount: 5, gold: 7000, pveBags: 5 }],
+      }),
+      saveCharacterDay,
+    });
+    render(<App gateway={gateway} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Concluir tudo" }));
+
+    await waitFor(() => expect(saveCharacterDay).toHaveBeenCalledTimes(1));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(saveCharacterDay).toHaveBeenCalledWith("pending", ["ca-pending"], "2026-08-26");
+    confirm.mockRestore();
   });
 
   it("opens the management page and creates an account", async () => {
@@ -463,7 +496,7 @@ describe("App", () => {
     expect(await screen.findByText("• Palácio de Proteção do Selo")).toBeInTheDocument();
 
     // Event filter buttons with counts
-    expect(await screen.findByRole("button", { name: /^Incompletos/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Incompletos (1)" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Torre/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Drops/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Rotinas/ })).toBeInTheDocument();

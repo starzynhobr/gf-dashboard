@@ -166,10 +166,16 @@ class AppBridge(QObject):
                             {
                                 "activityDate": point.activity_date.isoformat(),
                                 "gold": point.gold.amount,
+                                "pveBags": point.pve_bags,
                             }
                             for point in overview.monthly_gold
                         ],
                         "monthlyGoldTotal": overview.monthly_gold_total.amount,
+                        "pveBagUnitValueGold": (
+                            overview.pve_bag_unit_value_gold.amount
+                            if overview.pve_bag_unit_value_gold
+                            else None
+                        ),
                         "earnedGoldToday": overview.earned_gold_today.amount,
                         "pveBagsEarnedToday": overview.pve_bags_earned_today,
                         "todaySalesMinor": overview.today_sales_minor,

@@ -93,6 +93,7 @@ class RecentDrop:
 class MonthlyGoldPoint:
     activity_date: date
     gold: Gold
+    pve_bags: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +107,7 @@ class TodayActivityOverview:
     earned_gold_today: Gold
     pve_bags_earned_today: int
     today_sales_minor: int
+    pve_bag_unit_value_gold: Gold | None = None
 
 
 @dataclass(frozen=True, slots=True)

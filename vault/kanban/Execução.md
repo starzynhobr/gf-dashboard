@@ -23,6 +23,9 @@ tipo: kanban
 
 ## Concluído
 
+- [x] UI-019 — Desempenho mensal em gold equivalente com o valor dos Sacos PvE pela cotação atual e detalhamento no tooltip
+- [x] UI-020 — Botão “Concluir tudo” para as dungeons pendentes dos personagens de hoje, com confirmação única
+- [x] HIS-003 — Corrigir divergência entre resumo e detalhe do histórico; “Parcial” e “Incompletos” seguem as dungeons ativas
 - [x] PKG-003 — Excluir ICU incompatível do pacote e validar a inicialização do executável congelado antes do instalador
 - [x] PKG-001 e PKG-002 — Empacotamento Windows com PyInstaller, Qt WebEngine, assets React e instalador oficial Inno Setup 6 que preserva `%LOCALAPPDATA%`
 - [x] FIN-001 — Registro de vendas multimoeda idempotente, com valor original, conversão BRL calculada no backend e snapshot da origem da cotação

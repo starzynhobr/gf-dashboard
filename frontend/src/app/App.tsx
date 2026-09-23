@@ -92,6 +92,7 @@ export function App({ gateway }: { gateway: AppGateway }) {
   const [managementBusy, setManagementBusy] = useState(false);
   const [managementError, setManagementError] = useState<string | null>(null);
   const [characterDay, setCharacterDay] = useState<CharacterDayResult | null>(null);
+  const [completeAllBusy, setCompleteAllBusy] = useState(false);
   const [dayLoading, setDayLoading] = useState(false);
   const [daySaving, setDaySaving] = useState(false);
   const [dayError, setDayError] = useState<string | null>(null);
@@ -447,6 +448,39 @@ export function App({ gateway }: { gateway: AppGateway }) {
     const completedCharacters = characterRows.filter((character) => character.selectedDungeons > 0 && character.completedDungeons === character.selectedDungeons).length;
     return { selected, completed, completedCharacters };
   }, [characterRows]);
+  async function completeAllCharacters() {
+    const pendingCharacters = characterRows.filter(
+      (character) => character.selectedDungeons > 0 && character.completedDungeons < character.selectedDungeons,
+    );
+    if (!pendingCharacters.length || completeAllBusy) return;
+    const confirmed = window.confirm(
+      `Concluir todas as dungeons selecionadas de ${pendingCharacters.length} personagens para hoje? As diárias operacionais continuam separadas.`,
+    );
+    if (!confirmed) return;
+
+    setCompleteAllBusy(true);
+    setTodayError(null);
+    let savedCount = 0;
+    try {
+      for (const character of pendingCharacters) {
+        const day = await gateway.getCharacterDay(character.id);
+        await gateway.saveCharacterDay(
+          character.id,
+          day.dungeons.map((dungeon) => dungeon.characterActivityId),
+          day.activityDate,
+        );
+        savedCount += 1;
+      }
+      await loadDashboard();
+    } catch (error: unknown) {
+      setTodayError(
+        `Concluí ${savedCount} de ${pendingCharacters.length} personagens. ${error instanceof Error ? error.message : "Não foi possível salvar todas as conclusões."}`,
+      );
+      try { await loadDashboard(); } catch { /* keep the partial-save message visible */ }
+    } finally {
+      setCompleteAllBusy(false);
+    }
+  }
   const operationalDate = today?.activityDate ? new Date(`${today.activityDate}T12:00:00`) : new Date();
   const formattedDate = dateFormat.format(operationalDate);
   const titleDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
@@ -460,7 +494,17 @@ export function App({ gateway }: { gateway: AppGateway }) {
   const towerCompleted = activity?.towerCompleted ?? 0;
   const towerTotal = activity?.towerTotal ?? 0;
   const monthlyData = useMemo(
-    () => (activity?.monthlyGold ?? []).map((point) => ({ day: Number(point.activityDate.slice(-2)), gold: point.gold })),
+    () => (activity?.monthlyGold ?? []).map((point) => {
+      const pveBags = point.pveBags ?? 0;
+      const bagValueGold = pveBags * (activity?.pveBagUnitValueGold ?? 0);
+      return {
+        day: Number(point.activityDate.slice(-2)),
+        gold: point.gold,
+        pveBags,
+        bagValueGold,
+        goldEquivalent: point.gold + bagValueGold,
+      };
+    }),
     [activity],
   );
   const routineTime = routine ? `${String(Math.floor(routine.elapsedSeconds / 3600)).padStart(2, "0")}:${String(Math.floor((routine.elapsedSeconds % 3600) / 60)).padStart(2, "0")}:${String(routine.elapsedSeconds % 60).padStart(2, "0")}` : null;
@@ -611,7 +655,7 @@ export function App({ gateway }: { gateway: AppGateway }) {
         </div>
 
         <div className="content-grid">
-          <Panel className="characters-panel"><div className="panel-heading"><h2>Personagens</h2></div><div className="character-table">
+          <Panel className="characters-panel"><div className="panel-heading"><h2>Personagens</h2>{totals.completedCharacters < characterRows.filter((character) => character.selectedDungeons > 0).length && <button className="secondary-button bulk-complete-button" type="button" disabled={completeAllBusy} onClick={() => void completeAllCharacters()}><CheckCircle size={16} weight="fill" />{completeAllBusy ? "Concluindo..." : "Concluir tudo"}</button>}</div><div className="character-table">
             <div className="character-row character-header"><span>#</span><span>Personagem</span><span>Classe</span><span>VIP</span><span>Diárias</span><span>Dungeons</span><span>Status</span><span /></div>
             {characterRows.length ? characterRows.map((character, index) => {
               const percent = character.selectedDungeons ? Math.round((character.completedDungeons / character.selectedDungeons) * 100) : 0;

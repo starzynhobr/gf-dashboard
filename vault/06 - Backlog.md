@@ -1,7 +1,7 @@
 ---
 tipo: backlog
 status: ativo
-atualizado_em: 2026-09-22
+atualizado_em: 2026-09-23
 ---
 
 # Backlog
@@ -48,6 +48,8 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 - [x] **UI-016** Abrir calculadora sem consulta de câmbio na bridge; manter taxas indicativas locais e editáveis.
 - [x] **UI-017** Padronizar em 50 px a altura dos botões de ação da Home.
 - [x] **UI-018** Exibir a versão instalada no cartão do workspace local e mantê-la alinhada aos metadados do pacote.
+- [x] **UI-019** Exibir desempenho mensal em gold equivalente, somando Sacos PvE pela cotação atual e detalhando gold/sacos no tooltip.
+- [x] **UI-020** Concluir em lote as dungeons pendentes dos personagens da Home com uma confirmação.
 - [ ] **TST-001** Criar fixture dourada que reproduza os valores do mockup.
 - [x] **TST-002** Criar comparação visual 1680×941 e checklist de fidelidade em `design-qa.md`.
 
@@ -56,6 +58,7 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 - [ ] **MGT-001** Página de contas e personagens com arquivamento seguro.
 - [x] **MGT-002** Página de dungeons/atividades, seleção da rotina e metas padrão.
 - [x] **HIS-001** Histórico por data, conta, personagem e atividade.
+- [x] **HIS-003** Alinhar resumo, status “Parcial” e filtro “Incompletos” às dungeons ativas e selecionadas exibidas no detalhe; documentar o critério de dia completo.
 - [ ] **HIS-002** Edição auditável de sessões e lançamentos.
 - [ ] **INV-001** Catálogo de itens e ledger de inventário.
 - [x] **FIN-001** Vendas e ledger financeiro em gold/moeda.

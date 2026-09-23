@@ -410,20 +410,23 @@ class SqliteDashboardReader:
                 month_end = month_start.replace(month=month_start.month + 1)
             month_rows = connection.execute(
                 """
-                SELECT activity_date, SUM(gold) AS gold
+                SELECT activity_date, SUM(gold) AS gold, SUM(pve_bags) AS pve_bags
                 FROM (
-                    SELECT dae.activity_date, ac.gold_reward_snapshot AS gold
+                    SELECT dae.activity_date, ac.gold_reward_snapshot AS gold,
+                           ac.pve_bags_snapshot AS pve_bags
                     FROM activity_completions ac
                     JOIN daily_activity_entries dae ON dae.id = ac.daily_activity_entry_id
                         AND dae.deleted_at IS NULL
                     WHERE ac.workspace_id = ? AND ac.deleted_at IS NULL
                         AND dae.activity_date >= ? AND dae.activity_date < ?
                     UNION ALL
-                    SELECT fs.activity_date, fs.gold_earned AS gold
+                    SELECT fs.activity_date, fs.gold_earned AS gold,
+                           fs.pve_bags_earned AS pve_bags
                     FROM farm_sessions fs
                     WHERE fs.workspace_id = ? AND fs.status = 'completed'
                         AND fs.deleted_at IS NULL AND fs.activity_date >= ?
-                        AND fs.activity_date < ? AND fs.gold_earned > 0
+                        AND fs.activity_date < ?
+                        AND (fs.gold_earned > 0 OR fs.pve_bags_earned > 0)
                 ) facts
                 GROUP BY activity_date ORDER BY activity_date
                 """,
@@ -436,9 +439,24 @@ class SqliteDashboardReader:
                     month_end.isoformat(),
                 ),
             ).fetchall()
+            bag_quote_row = connection.execute(
+                """SELECT mpq.unit_value_gold FROM market_price_quotes mpq
+                JOIN items i ON i.id = mpq.item_id AND i.name = 'Saco PvE'
+                WHERE mpq.workspace_id = ? AND mpq.deleted_at IS NULL AND i.deleted_at IS NULL
+                ORDER BY mpq.observed_at DESC, mpq.rowid DESC LIMIT 1""",
+                (workspace_id,),
+            ).fetchone()
+            bag_unit_value = int(bag_quote_row["unit_value_gold"]) if bag_quote_row else 0
             monthly_gold = tuple(
-                MonthlyGoldPoint(date.fromisoformat(row["activity_date"]), Gold(int(row["gold"])))
+                MonthlyGoldPoint(
+                    date.fromisoformat(row["activity_date"]),
+                    Gold(int(row["gold"])),
+                    int(row["pve_bags"]),
+                )
                 for row in month_rows
+            )
+            monthly_gold_equivalent_total = sum(
+                point.gold.amount + point.pve_bags * bag_unit_value for point in monthly_gold
             )
 
             # Today's earned gold & sales
@@ -509,10 +527,11 @@ class SqliteDashboardReader:
                     for row in drop_rows
                 ),
                 monthly_gold=monthly_gold,
-                monthly_gold_total=Gold(sum(point.gold.amount for point in monthly_gold)),
+                monthly_gold_total=Gold(monthly_gold_equivalent_total),
                 earned_gold_today=Gold(earned_gold_today),
                 pve_bags_earned_today=pve_bags_earned_today,
                 today_sales_minor=today_sales_minor,
+                pve_bag_unit_value_gold=Gold(bag_unit_value) if bag_quote_row else None,
             )
         finally:
             connection.close()
@@ -575,7 +594,7 @@ class SqliteDashboardReader:
 
             date_rows = connection.execute(
                 f"""
-                SELECT DISTINCT activity_date FROM (
+                    SELECT DISTINCT activity_date FROM (
                     SELECT dae.activity_date
                     FROM daily_activity_entries dae
                     JOIN character_activities ca ON ca.id = dae.character_activity_id
@@ -632,14 +651,18 @@ class SqliteDashboardReader:
                 char_rows = connection.execute(
                     """
                     SELECT c.id,
-                           COUNT(ca.id) AS selected,
+                           COUNT(a.id) AS selected,
                            COALESCE(
-                             SUM(CASE WHEN dae.status = 'completed' THEN 1 ELSE 0 END), 0
+                             SUM(CASE WHEN a.id IS NOT NULL AND dae.status = 'completed'
+                                 THEN 1 ELSE 0 END), 0
                            ) AS completed
                     FROM characters c
                     JOIN accounts acc ON acc.id = c.account_id AND acc.deleted_at IS NULL
-                    JOIN character_activities ca
-                      ON ca.character_id = c.id AND ca.is_active = 1 AND ca.deleted_at IS NULL
+                    LEFT JOIN character_activities ca
+                      ON ca.character_id = c.id AND ca.workspace_id = c.workspace_id
+                        AND ca.is_active = 1 AND ca.deleted_at IS NULL
+                    LEFT JOIN activities a ON a.id = ca.activity_id
+                        AND a.is_active = 1 AND a.deleted_at IS NULL
                     LEFT JOIN daily_activity_entries dae ON dae.character_activity_id = ca.id
                         AND dae.activity_date = ? AND dae.deleted_at IS NULL
                     WHERE c.workspace_id = ? AND c.is_active = 1 AND c.deleted_at IS NULL
@@ -651,9 +674,7 @@ class SqliteDashboardReader:
                 ).fetchall()
                 total_chars = len(char_rows)
                 completed_chars = sum(
-                    1
-                    for r in char_rows
-                    if int(r["completed"]) > 0 and int(r["completed"]) >= int(r["selected"])
+                    1 for r in char_rows if int(r["completed"]) >= int(r["selected"])
                 )
 
                 tower_query = connection.execute(

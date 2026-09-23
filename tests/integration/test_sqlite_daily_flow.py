@@ -253,16 +253,17 @@ def test_sqlite_daily_dungeon_flow_is_atomic_idempotent_and_reopenable(tmp_path:
     with uow:
         persisted = uow.completions.list_for_entry(workspace.id, first.entry.id)
     assert [completion.sequence_no for completion in persisted] == [1, 2, 3, 4, 5]
+    MarketQuoteService(uow, ids, clock).record_pve_bag_quote(workspace.id, Gold(1250))
     overview = SqliteDashboardReader(database).today_activity_for_default_workspace(
         date(2026, 8, 26)
     )
     assert overview is not None
     assert overview.runs_completed == 5
     assert overview.pve_bags_earned_today == 5
-    assert overview.monthly_gold_total == Gold(7000)
-    assert [(point.activity_date, point.gold) for point in overview.monthly_gold] == [
-        (date(2026, 8, 26), Gold(7000))
-    ]
+    assert overview.monthly_gold_total == Gold(13_250)
+    assert [
+        (point.activity_date, point.gold, point.pve_bags) for point in overview.monthly_gold
+    ] == [(date(2026, 8, 26), Gold(7000), 5)]
     response = json.loads(
         AppBridge(database).invoke(
             json.dumps(
@@ -277,7 +278,10 @@ def test_sqlite_daily_dungeon_flow_is_atomic_idempotent_and_reopenable(tmp_path:
     )
     assert response["ok"] is True
     assert response["data"]["runsCompleted"] == 5
-    assert response["data"]["monthlyGoldTotal"] == 7000
+    assert response["data"]["monthlyGoldTotal"] == 13_250
+    assert response["data"]["monthlyGold"][0]["gold"] == 7000
+    assert response["data"]["monthlyGold"][0]["pveBags"] == 5
+    assert response["data"]["pveBagUnitValueGold"] == 1250
     assert response["data"]["pveBagsEarnedToday"] == 5
 
 
@@ -390,51 +394,53 @@ def test_dashboard_reader_lists_fixture_characters_with_daily_progress(tmp_path:
 
     first_character = characters[0]
     operations = SqliteDailyOperations(database)
+    vip_test_now = datetime.now(UTC).replace(microsecond=0)
     assert operations.set_character_daily_mission(
         str(fixture.workspace_id), first_character.id, date(2026, 8, 26), True
     )
-    operations.set_monthly_target(str(fixture.workspace_id), "2026-08", 30_000_000)
+    target_month = f"{vip_test_now.year:04d}-{vip_test_now.month:02d}"
+    operations.set_monthly_target(str(fixture.workspace_id), target_month, 30_000_000)
     expires_at = operations.save_character_vip(
         str(fixture.workspace_id),
         first_character.id,
         100_000,
         30,
         0,
-        current_time=datetime(2026, 8, 26, 12, tzinfo=UTC),
+        current_time=vip_test_now,
     )
-    assert expires_at == datetime(2026, 9, 25, 12, tzinfo=UTC)
+    assert expires_at == vip_test_now + timedelta(days=30)
 
     refreshed = SqliteDashboardReader(database).today_characters_for_default_workspace(
         date(2026, 8, 26)
     )
     reports = SqliteDashboardReader(database).reports_overview_for_default_workspace(
-        date(2026, 8, 26)
+        vip_test_now.date()
     )
 
     assert refreshed is not None
     assert refreshed[0].daily_mission_completed is True
-    assert refreshed[0].vip_expires_at == datetime(2026, 9, 25, 12, tzinfo=UTC)
+    assert refreshed[0].vip_expires_at == expires_at
     assert reports is not None
-    assert reports.monthly_target.target_month == "2026-08"
+    assert reports.monthly_target.target_month == target_month
     assert reports.monthly_target.target_gold == Gold(30_000_000)
     assert reports.financial_summary.vip_expenses_gold == Gold(100_000)
 
-    operations.save_character_vip(
+    adjusted_expires_at = operations.save_character_vip(
         str(fixture.workspace_id),
         first_character.id,
         100_000,
         27,
         10,
-        current_time=datetime(2026, 8, 26, 13, tzinfo=UTC),
+        current_time=vip_test_now + timedelta(hours=1),
     )
     adjusted = SqliteDashboardReader(database).today_characters_for_default_workspace(
         date(2026, 8, 26)
     )
     adjusted_reports = SqliteDashboardReader(database).reports_overview_for_default_workspace(
-        date(2026, 8, 26)
+        vip_test_now.date()
     )
     assert adjusted is not None
-    assert adjusted[0].vip_expires_at == datetime(2026, 9, 22, 23, tzinfo=UTC)
+    assert adjusted[0].vip_expires_at == adjusted_expires_at
     assert adjusted_reports is not None
     assert adjusted_reports.financial_summary.vip_expenses_gold == Gold(100_000)
 
@@ -686,6 +692,17 @@ def test_history_overview_and_day_detail_query_and_bridge(tmp_path: Path) -> Non
     character_activity = workspace_service.configure_character_activity(
         workspace.id, character.id, activity.id, 5, 1
     )
+    retired_activity = create_dungeon(activity_id=ids.new(), workspace_id=workspace.id)
+    with uow:
+        uow.activities.save(retired_activity)
+    workspace_service.configure_character_activity(
+        workspace.id, character.id, retired_activity.id, 5, 2
+    )
+    with database.connect() as conn:
+        conn.execute(
+            "UPDATE activities SET is_active = 0 WHERE id = ?", (str(retired_activity.id),)
+        )
+        conn.commit()
     completion_service.complete_activity(workspace.id, character_activity.id, date(2026, 8, 25))
     completion_service.complete_activity(workspace.id, character_activity.id, date(2026, 8, 26))
 
@@ -722,7 +739,9 @@ def test_history_overview_and_day_detail_query_and_bridge(tmp_path: Path) -> Non
     assert days[0]["runsCompleted"] == 5
     assert days[0]["goldEarned"] == 7000
     assert days[0]["routineDurationSeconds"] == 23940
+    assert days[0]["charactersCompleted"] == days[0]["charactersTotal"] == 1
     assert days[1]["activityDate"] == "2026-08-25"
+    assert days[1]["charactersCompleted"] == days[1]["charactersTotal"] == 1
     assert days[1]["routineDurationSeconds"] == 0
 
     detail_res = json.loads(
@@ -746,6 +765,7 @@ def test_history_overview_and_day_detail_query_and_bridge(tmp_path: Path) -> Non
     assert len(detail["characters"]) == 1
     assert detail["characters"][0]["name"] == "Star01"
     assert detail["characters"][0]["completedDungeons"] == 1
+    assert detail["characters"][0]["selectedDungeons"] == 1
     assert detail["characters"][0]["dungeons"][0]["completed"] is True
 
 

@@ -66,13 +66,10 @@ function getDayStatus(day: HistoryDaySummary): DayStatus {
   if (day.runsCompleted === 0 && day.towerTotal === 0 && day.dropsCount === 0 && (day.routineDurationSeconds ?? 0) === 0) {
     return "empty";
   }
-  if (day.charactersTotal > 0 && day.charactersCompleted >= day.charactersTotal) {
-    return "complete";
+  if (day.charactersTotal > 0) {
+    return day.charactersCompleted >= day.charactersTotal ? "complete" : "partial";
   }
-  if (day.charactersTotal === 0 && day.runsCompleted > 0) {
-    return "complete";
-  }
-  return "partial";
+  return day.runsCompleted > 0 ? "complete" : "partial";
 }
 
 type EventFilter = "all" | "incomplete" | "tower" | "drops" | "routine";
@@ -159,7 +156,7 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
   const eventCounts = useMemo(() => {
     return {
       all: days.length,
-      incomplete: days.filter((d) => d.charactersTotal > 0 && d.charactersCompleted < d.charactersTotal).length,
+      incomplete: days.filter((day) => getDayStatus(day) === "partial").length,
       tower: days.filter((d) => d.towerTotal > 0).length,
       drops: days.filter((d) => d.dropsCount > 0).length,
       routine: days.filter((d) => (d.routineDurationSeconds ?? 0) > 0).length,
@@ -170,7 +167,7 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
   const filteredDays = useMemo(() => {
     if (eventFilter === "all") return days;
     if (eventFilter === "incomplete") {
-      return days.filter((d) => d.charactersTotal > 0 && d.charactersCompleted < d.charactersTotal);
+      return days.filter((day) => getDayStatus(day) === "partial");
     }
     if (eventFilter === "tower") {
       return days.filter((d) => d.towerTotal > 0);
@@ -341,7 +338,7 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
         <div>
           <p className="page-kicker">Registro contínuo</p>
           <h1>Histórico de farm</h1>
-          <span>Consulte o passado destacando exceções, progresso diário, sessões de torre e drops obtidos.</span>
+          <span>Um dia fica completo quando todos os personagens ativos concluem suas dungeons selecionadas. Diárias operacionais e Torre são acompanhamentos separados.</span>
         </div>
       </div>
 

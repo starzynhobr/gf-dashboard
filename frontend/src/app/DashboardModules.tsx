@@ -33,7 +33,7 @@ export function DashboardModuleHost({
   towerCompleted: number;
   towerTotal: number;
   gold: number;
-  monthlyData: Array<{ day: number; gold: number }>;
+  monthlyData: Array<{ day: number; gold: number; pveBags: number; bagValueGold: number; goldEquivalent: number }>;
 }) {
   const earnedGold = activity?.earnedGoldToday ?? gold;
   const pveBagsEarned = activity?.pveBagsEarnedToday ?? 0;
@@ -117,7 +117,7 @@ export function DashboardModuleHost({
         <Panel className="monthly-panel">
           <div className="panel-heading">
             <h2>Desempenho mensal</h2>
-            <span>Ouro obtido</span>
+            <span title="Sacos PvE valorados pela cotação atual">Gold + Sacos PvE</span>
           </div>
           {monthlyData.length ? (
             <Suspense fallback={<div className="module-empty chart-empty">Carregando gráfico...</div>}>
@@ -130,7 +130,7 @@ export function DashboardModuleHost({
             </div>
           )}
           <div className="month-total">
-            <span>Total do mês</span>
+            <span>Total equivalente do mês</span>
             <strong>
               <Coins size={17} weight="fill" /> {numberFormat.format(activity?.monthlyGoldTotal ?? 0)}
             </strong>
