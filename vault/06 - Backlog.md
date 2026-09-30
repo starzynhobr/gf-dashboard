@@ -1,7 +1,7 @@
 ---
 tipo: backlog
 status: ativo
-atualizado_em: 2026-09-23
+atualizado_em: 2026-09-30
 ---
 
 # Backlog
@@ -100,6 +100,11 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 - [x] **GME-008** Informar preço inicial do Saco PvE (1.000 gold) e cotação inicial do gold (7–8c/1k).
 - [ ] **GME-009** Confirmar a linha cortada sobre reset das oportunidades da Torre.
 
+## Preparação do repositório público
+
+- [x] **PUB-001** Remover referências pessoais do estado atual, anonimizar a demonstração, ignorar dados locais e documentar limites da publicação; aceite: checks frontend passam, referências removidas não aparecem no estado atual e o histórico preservado é informado.
+- [x] **PUB-002** Registrar a licença MIT escolhida pelo proprietário e documentar fontes conhecidas e limites dos assets; aceite: LICENSE e README coerentes, sem atribuir direitos sobre materiais de terceiros.
+
 ## P2 — Escala e cloud opcional
 
 - [ ] **WEB-001** Validar demanda do canal web e decidir hospedagem/API antes de implementar.
@@ -126,3 +131,7 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 ## Critério para promover uma ideia
 
 Definir problema, usuário, dado necessário, riscos, critério de aceite e marco-alvo. “Pode ser útil algum dia” justifica preservar fatos relevantes, não implementar uma feature sem caso de uso.
+
+## Evidência da preparação para publicação — 2026-09-30
+
+PUB-001/PUB-002: 55 testes Python e 34 frontend passaram; Ruff check/format, mypy, ESLint, typecheck, build Vite e `uv lock --check` passaram. O build mantém aviso de chunk acima de 500 kB, sem falha. `git diff --check` e wikilinks do vault verificados; busca dirigida no estado atual não encontrou os caminhos pessoais, link da conversa e apelidos removidos. Padrões de exclusão conferidos e arquivo `temp/1.png` preservado. Licença MIT adicionada e e-mail noreply configurado somente no Git local. Histórico, commits e visibilidade remota não foram alterados; as referências pessoais antigas permanecem no histórico. A origem dos assets foi registrada conforme a documentação existente, sem certificar direitos de terceiros nem validar distribuição pública do instalador.

@@ -23,6 +23,9 @@ tipo: kanban
 
 ## Concluído
 
+- [x] PUB-001 — Privacidade proporcional: referências portáveis, demonstração e fixtures fictícias, dados locais ignorados e histórico preservado documentado
+- [x] PUB-002 — Licença MIT escolhida pelo proprietário e fontes/limites dos assets documentados; checks registrados no Backlog
+
 - [x] UI-019 — Desempenho mensal em gold equivalente com o valor dos Sacos PvE pela cotação atual e detalhamento no tooltip
 - [x] UI-020 — Botão “Concluir tudo” para as dungeons pendentes dos personagens de hoje, com confirmação única
 - [x] HIS-003 — Corrigir divergência entre resumo e detalhe do histórico; “Parcial” e “Incompletos” seguem as dungeons ativas

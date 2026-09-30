@@ -33,3 +33,17 @@ dist/
 .vscode/
 Thumbs.db
 Desktop.ini
+
+# Dados e arquivos locais que não pertencem ao código público
+temp/
+backups/
+exports/
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
+*.db-journal
+*.sqlite-journal
+*.sqlite3-journal

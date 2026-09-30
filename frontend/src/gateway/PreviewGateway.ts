@@ -335,7 +335,7 @@ export class PreviewGateway implements AppGateway {
         { id: "sale-4", itemName: "Saco de Cristal (PvE)", quantity: 5, amountMinor: 1750, currency: "BRL", soldAt: "2026-08-26T19:07:00" },
       ],
       recentMovements: [
-        { id: "movement-1", kind: "dungeon", title: "Dimensão Distorcida", detail: "Sentry1", occurredAt: "2026-08-27T14:32:00", goldAmount: 12000, pveBags: 5, amountMinor: null },
+        { id: "movement-1", kind: "dungeon", title: "Dimensão Distorcida", detail: "Exemplo01", occurredAt: "2026-08-27T14:32:00", goldAmount: 12000, pveBags: 5, amountMinor: null },
         { id: "movement-2", kind: "sale_gold", title: "Venda de gold", detail: null, occurredAt: "2026-08-27T13:18:00", goldAmount: 950000, pveBags: null, amountMinor: 7600 },
         { id: "movement-3", kind: "expense", title: "Despesa · Melhoria", detail: "Pedra para arma", occurredAt: "2026-08-27T11:45:00", goldAmount: 44000, pveBags: null, amountMinor: null },
       ],
@@ -363,11 +363,11 @@ export class PreviewGateway implements AppGateway {
         daysRemaining: 5,
       },
       topCharacters: [
-        { rank: 1, characterId: "char-1", characterName: "Sentry1", className: "Druida", goldEarned: 4920000 },
-        { rank: 2, characterId: "char-2", characterName: "StarlightBR", className: "Druida", goldEarned: 4310000 },
-        { rank: 3, characterId: "char-3", characterName: "StarNeTTe", className: "Druida", goldEarned: 3100000 },
-        { rank: 4, characterId: "char-4", characterName: "Starlicia", className: "Druida", goldEarned: 2640000 },
-        { rank: 5, characterId: "char-5", characterName: "StarzynhoBR", className: "Druida", goldEarned: 1370000 },
+        { rank: 1, characterId: "char-1", characterName: "Personagem 01", className: "Druida", goldEarned: 4920000 },
+        { rank: 2, characterId: "char-2", characterName: "Personagem 02", className: "Druida", goldEarned: 4310000 },
+        { rank: 3, characterId: "char-3", characterName: "Personagem 03", className: "Druida", goldEarned: 3100000 },
+        { rank: 4, characterId: "char-4", characterName: "Personagem 04", className: "Druida", goldEarned: 2640000 },
+        { rank: 5, characterId: "char-5", characterName: "Personagem 05", className: "Druida", goldEarned: 1370000 },
       ],
       monthlySalesHistory: [
         { monthKey: "2026-04", monthLabel: "Abr/26", salesAmountMinor: 32000, salesCount: 5, isPartial: false },

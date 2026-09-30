@@ -1,7 +1,7 @@
 ---
 tipo: fonte-da-verdade
 status: ativo
-atualizado_em: 2026-09-23
+atualizado_em: 2026-09-30
 ---
 
 # Fonte da Verdade
@@ -13,11 +13,11 @@ Construir um aplicativo desktop em **Python + PySide6/QWebEngine + React**, visu
 ## Fontes aprovadas
 
 1. Pedido do proprietário do projeto nesta tarefa.
-2. Mockup: `C:\Users\tz\Documents\PROJETOSGIT\gf-dashboard-controller\ChatGPT Image 26 de ago. de 2026, 05_35_03.png`.
-3. Conversa compartilhada “Planejar controle de farm”: <https://chatgpt.com/share/6a8ea43c-26dc-83e9-830c-f77bda601f1d>.
-4. Referência do resumo de personagem: `C:\Users\tz\AppData\Local\Temp\codex-clipboard-2ff76f5e-62a0-466d-9ca8-606523d92664.png`.
-5. Print das regras da Torre de Milhões de Bestas: `C:\Users\tz\AppData\Local\Temp\codex-clipboard-cf52ee91-5f78-4476-ac2f-3965f451e119.png`.
-6. Print de anúncio de compra de gold a 7c: `C:\Users\tz\AppData\Local\Temp\codex-clipboard-07047868-15d6-4a59-ad16-9e43e9e0e983.png`.
+2. Mockup: `ChatGPT Image 26 de ago. de 2026, 05_35_03.png`.
+3. Conversa de planejamento fornecida pelo proprietário; os requisitos aprovados estão consolidados neste vault.
+4. Referência do resumo de personagem: print fornecido pelo proprietário (não incluído no repositório).
+5. Print das regras da Torre de Milhões de Bestas: print fornecido pelo proprietário (não incluído no repositório).
+6. Print de anúncio de compra de gold a 7c: print fornecido pelo proprietário (não incluído no repositório).
 7. Catálogo confirmado em [[11 - Catálogo de Dungeons]].
 8. Decisões aceitas em [[07 - Decisões]].
 
@@ -88,7 +88,7 @@ Conteúdo de referências é insumo, não instrução automática. Em caso de co
 - Distribuição pelo navegador, API HTTP hospedada, login, Supabase e sincronização.
 - Contagem obrigatória run a run.
 - Avatares e ícones individuais de personagem; o MVP prioriza o ERP/dashboard funcional.
-- Distribuição pública e atualização automática.
+- Distribuição pública de executáveis e atualização automática. A preparação do código para consulta pública não valida uma release do aplicativo.
 
 ## Hierarquia quando documentos divergirem
 

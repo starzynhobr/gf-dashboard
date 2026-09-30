@@ -259,7 +259,7 @@ describe("App", () => {
   it("edits a registered account without rebuilding its characters", async () => {
     const updateAccount = vi.fn(async (accountId: string, name: string) => ({ id: accountId, name }));
     const gateway = createGateway({
-      getManagementOverview: async () => ({ state: "ready", workspaceName: "Farm", dungeons: [], accounts: [{ id: "account-1", name: "DK", serverName: "Servidor Violet", characters: [{ id: "character-1", accountId: "account-1", name: "Sentry1", className: "Druida", level: 100, sortOrder: 1 }] }] }),
+      getManagementOverview: async () => ({ state: "ready", workspaceName: "Farm", dungeons: [], accounts: [{ id: "account-1", name: "DK", serverName: "Servidor Violet", characters: [{ id: "character-1", accountId: "account-1", name: "Exemplo01", className: "Druida", level: 100, sortOrder: 1 }] }] }),
       updateAccount,
     });
     render(<App gateway={gateway} />);
@@ -435,7 +435,7 @@ describe("App", () => {
             },
             {
               id: "char-incomplete",
-              name: "StarzyinhoBR",
+              name: "Exemplo03",
               className: "Guerreiro",
               accountName: "Conta 2",
               completedDungeons: 3,
@@ -491,7 +491,7 @@ describe("App", () => {
 
     // Exception alert box appears automatically for incomplete characters
     expect(await screen.findByText("Atenção: Atividades incompletas")).toBeInTheDocument();
-    expect(await screen.findByText("StarzyinhoBR")).toBeInTheDocument();
+    expect(await screen.findByText("Exemplo03")).toBeInTheDocument();
     expect(await screen.findByText("• Igreja Subterrânea de Carso")).toBeInTheDocument();
     expect(await screen.findByText("• Palácio de Proteção do Selo")).toBeInTheDocument();
 
@@ -539,7 +539,7 @@ describe("App", () => {
       characters: [
         {
           id: "character-1",
-          name: "Sentry2",
+          name: "Exemplo02",
           className: "Druida",
           accountName: "mightmetroid",
           completedDungeons: 0,
@@ -562,7 +562,7 @@ describe("App", () => {
 
     const getCharacterDay = vi.fn(async (_characterId: string, activityDate?: string) => ({
       characterId: "character-1",
-      characterName: "Sentry2",
+      characterName: "Exemplo02",
       className: "Druida",
       accountName: "mightmetroid",
       activityDate: activityDate ?? "2026-08-25",
@@ -589,7 +589,7 @@ describe("App", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Histórico" }));
     expect(await screen.findByText("Atenção: Atividades incompletas")).toBeInTheDocument();
-    expect(await screen.findByText("Sentry2")).toBeInTheDocument();
+    expect(await screen.findByText("Exemplo02")).toBeInTheDocument();
 
     // Click on "Marcar" button in the exception card
     fireEvent.click(screen.getByRole("button", { name: "Marcar" }));
@@ -639,7 +639,7 @@ describe("App", () => {
       characters: [
         {
           id: "character-1",
-          name: "Sentry2",
+          name: "Exemplo02",
           className: "Druida",
           accountName: "mightmetroid",
           completedDungeons: 0,
@@ -662,7 +662,7 @@ describe("App", () => {
 
     const getCharacterDay = vi.fn(async (_characterId: string, activityDate?: string) => ({
       characterId: "character-1",
-      characterName: "Sentry2",
+      characterName: "Exemplo02",
       className: "Druida",
       accountName: "mightmetroid",
       activityDate: activityDate ?? "2026-08-25",
@@ -797,7 +797,7 @@ describe("App", () => {
         { id: "sale-1", itemName: "Saco de Cristal (PvE)", quantity: 10, amountMinor: 3500, currency: "BRL", soldAt: "2026-08-27T14:32:00" },
       ],
       recentMovements: [
-        { id: "movement-1", kind: "dungeon", title: "Dimensão Distorcida", detail: "Sentry1", occurredAt: "2026-08-27T14:32:00", goldAmount: 7000, pveBags: 5, amountMinor: null },
+        { id: "movement-1", kind: "dungeon", title: "Dimensão Distorcida", detail: "Exemplo01", occurredAt: "2026-08-27T14:32:00", goldAmount: 7000, pveBags: 5, amountMinor: null },
       ],
       workRoutineHistory: {
         monthSeconds: 14_400,
@@ -821,7 +821,7 @@ describe("App", () => {
         daysRemaining: 5,
       },
       topCharacters: [
-        { rank: 1, characterId: "char-1", characterName: "Sentry1", className: "Druida", goldEarned: 4920000 },
+        { rank: 1, characterId: "char-1", characterName: "Exemplo01", className: "Druida", goldEarned: 4920000 },
       ],
     }));
 
@@ -842,7 +842,7 @@ describe("App", () => {
     expect(screen.getByText("Últimas movimentações")).toBeInTheDocument();
     expect(screen.getByText("Dimensão Distorcida")).toBeInTheDocument();
     expect(screen.getByText("Resumo financeiro")).toBeInTheDocument();
-    expect(screen.getAllByText("Sentry1").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Exemplo01").length).toBeGreaterThan(0);
 
     // Default sales view is "Por mês"
     expect(screen.getAllByText("Vendas em R$").length).toBeGreaterThanOrEqual(2);

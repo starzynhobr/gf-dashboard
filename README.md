@@ -50,3 +50,17 @@ npm --prefix frontend run build
 ## Dados locais
 
 Na inicialização, o aplicativo prepara o banco SQLite em `QStandardPaths.AppLocalDataLocation`, dentro de `data/gf-dashboard.sqlite3`. Esse caminho é separado da instalação e do repositório; migrations pendentes criam um backup verificado antes de alterar um banco existente.
+
+## Publicação e privacidade
+
+Projeto independente para Grand Fantasia, sem afiliação oficial com o jogo. O MVP ainda está em desenvolvimento; publicar o código não representa uma release pública validada do aplicativo.
+
+Dados de demonstração são exemplos e não devem ser interpretados como resultados reais. Ao abrir uma issue, use dados fictícios e remova nomes de contas/personagens, observações privadas e caminhos pessoais de prints ou logs. Não anexe seu banco, backups, exports ou credenciais.
+
+O vault contém o planejamento do produto. Referências privadas não são necessárias para desenvolver: os requisitos confirmados estão consolidados nas notas. Antes de publicar, confira também o histórico Git, que mantém versões anteriores dos arquivos e os e-mails usados nos commits.
+
+## Licença
+
+O código e a documentação próprios do projeto estão sob a licença [MIT](LICENSE). Dependências e materiais de terceiros mantêm suas respectivas licenças; a MIT do projeto não concede direitos sobre marcas ou conteúdo de Grand Fantasia.
+
+A interface usa ícones Phosphor e fontes do sistema, sem arquivos de fonte empacotados. A marca raster é registrada como ativo próprio em `design-qa.md`. O mockup e as capturas de comparação são referências de design; não são uma biblioteca de assets do jogo para redistribuição.

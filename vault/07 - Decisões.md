@@ -1,7 +1,7 @@
 ---
 tipo: decisoes
 status: ativo
-atualizado_em: 2026-09-22
+atualizado_em: 2026-09-30
 ---
 
 # Decisões
@@ -79,6 +79,8 @@ atualizado_em: 2026-09-22
 | ADR-061 | Aceita | VIP usa expiração UTC com precisão de hora e tempo restante informado | A Home mostra dias/horas; ajuste da vigência ativa não duplica a despesa original; a migration preserva datas legadas |
 | ADR-062 | Aceita | Histórico de rotina exige no mínimo cinco minutos ativos | Encerramentos menores que 300 segundos são preservados no banco via soft delete e excluídos dos relatórios, inclusive os já existentes |
 | ADR-063 | Aceita | Comparação mensal usa o acumulado atual contra o mês anterior completo | O mês atual vai do dia 1 até a data do relatório; o mês anterior usa todos os dias do calendário, mesmo sem sobreposição de datas; rótulos identificam ambos os intervalos |
+
+| ADR-064 | Aceita | Preparar o código para publicação com privacidade proporcional ao MVP | Usar exemplos fictícios, referências portáveis e exclusão de dados locais; preservar o histórico existente sem segredos identificados. Código e documentação próprios sob MIT, conforme escolha do proprietário; materiais de terceiros mantêm seus direitos. A publicação é uma decisão separada; não habilitar serviços remotos nem distribuir executáveis por esta tarefa |
 
 ## Questões abertas
 

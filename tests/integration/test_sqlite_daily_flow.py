@@ -546,7 +546,7 @@ def test_bridge_contract_covers_registration_character_day_and_dashboard_refresh
         "management.updateCharacter",
         {
             "characterId": character["id"],
-            "name": "Sentry1",
+            "name": "Exemplo01",
             "className": "Druida",
             "level": 100,
         },
@@ -593,9 +593,9 @@ def test_bridge_contract_covers_registration_character_day_and_dashboard_refresh
     reset_layout = invoke("dashboard.resetLayout", {})
 
     assert renamed_account["name"] == "DK"
-    assert renamed_character["name"] == "Sentry1"
+    assert renamed_character["name"] == "Exemplo01"
     assert management["accounts"][0]["name"] == "DK"
-    assert management["accounts"][0]["characters"][0]["name"] == "Sentry1"
+    assert management["accounts"][0]["characters"][0]["name"] == "Exemplo01"
     assert len(management["dungeons"]) == 9
     assert len(day["dungeons"]) == 9
     assert saved["completedDungeons"] == 2
@@ -877,7 +877,7 @@ def test_reports_overview_aggregates_monthly_kpis_and_character_rankings(tmp_pat
                     "method": "management.createCharacter",
                     "payload": {
                         "accountId": acc["id"],
-                        "name": "Sentry1",
+                        "name": "Exemplo01",
                         "className": "Druida",
                         "level": 100,
                     },
@@ -1164,7 +1164,7 @@ def test_reports_month_to_date_versus_previous_full_month_and_sales_history(
                     "method": "management.createCharacter",
                     "payload": {
                         "accountId": acc["id"],
-                        "name": "Sentry1",
+                        "name": "Exemplo01",
                         "className": "Druida",
                         "level": 100,
                     },

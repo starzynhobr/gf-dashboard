@@ -2,11 +2,11 @@
 
 ## Evidências
 
-- Fonte visual: `C:\Users\tz\Documents\PROJETOSGIT\gf-dashboard-controller\ChatGPT Image 26 de ago. de 2026, 05_35_03.png`
-- Implementação renderizada: `C:\Users\tz\Documents\PROJETOSGIT\gf-dashboard-controller\design-qa-implementation.png`
-- Comparação completa empilhada: `C:\Users\tz\Documents\PROJETOSGIT\gf-dashboard-controller\design-qa-comparison.png`
-- Comparação focada dos KPIs: `C:\Users\tz\Documents\PROJETOSGIT\gf-dashboard-controller\design-qa-focused-kpis.png`
-- Comparação focada do conteúdo: `C:\Users\tz\Documents\PROJETOSGIT\gf-dashboard-controller\design-qa-focused-content.png`
+- Fonte visual: `ChatGPT Image 26 de ago. de 2026, 05_35_03.png`
+- Implementação renderizada: `design-qa-implementation.png`
+- Comparação completa empilhada: `design-qa-comparison.png`
+- Comparação focada dos KPIs: `design-qa-focused-kpis.png`
+- Comparação focada do conteúdo: `design-qa-focused-content.png`
 - URL de implementação: `http://127.0.0.1:4173/?preview=1`
 - Viewport CSS: 1680×941, `devicePixelRatio: 1`.
 - Fonte: 1672×941 px normalizada horizontalmente para 1680×941 na comparação.

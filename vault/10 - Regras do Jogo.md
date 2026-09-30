@@ -46,7 +46,7 @@ Os valores exatos por dungeon estão em [[11 - Catálogo de Dungeons]].
 
 ## Torre de Milhões de Bestas
 
-Fonte visual fornecida: `C:\Users\tz\AppData\Local\Temp\codex-clipboard-cf52ee91-5f78-4476-ac2f-3965f451e119.png`.
+Fonte visual fornecida: print fornecido pelo proprietário (não incluído no repositório).
 
 ### Uso no app
 

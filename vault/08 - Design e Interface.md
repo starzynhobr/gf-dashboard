@@ -8,11 +8,11 @@ atualizado_em: 2026-08-26
 
 ## Referência primária
 
-Arquivo: `C:\Users\tz\Documents\PROJETOSGIT\gf-dashboard-controller\ChatGPT Image 26 de ago. de 2026, 05_35_03.png`
+Arquivo: `ChatGPT Image 26 de ago. de 2026, 05_35_03.png`
 
 Viewport da referência: **1680×941**. A imagem é direção visual, enquanto o fluxo simples pendente/feito da [[01 - Fonte da Verdade]] prevalece sobre a obrigação de contar 25 runs.
 
-Referência secundária do resumo: `C:\Users\tz\AppData\Local\Temp\codex-clipboard-2ff76f5e-62a0-466d-9ca8-606523d92664.png`. Ela define conteúdo e simplicidade do fluxo, não o tema visual claro/monoespaçado.
+Referência secundária do resumo: print fornecido pelo proprietário (não incluído no repositório). Ela define conteúdo e simplicidade do fluxo, não o tema visual claro/monoespaçado.
 
 ## Anatomia da tela Hoje
 

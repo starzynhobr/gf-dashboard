@@ -1,7 +1,7 @@
 ---
 tipo: qualidade
 status: ativo
-atualizado_em: 2026-08-26
+atualizado_em: 2026-09-30
 ---
 
 # Qualidade, Backup e Segurança de Dados
@@ -88,3 +88,13 @@ Se abrir ou migrar falhar:
 - Pacote abre sem terminal e sem Python instalado globalmente.
 - Dados permanecem após atualizar e desinstalar/reinstalar conforme política documentada.
 - Notas de versão informam qualquer migration e caminho de recuperação.
+
+## Publicação do repositório
+
+- Usar dados fictícios em previews, testes e exemplos; sanitizar anexos de issues.
+- Excluir bancos SQLite, journals, backups, exports e arquivos temporários locais do Git.
+- Usar caminhos relativos nas referências a arquivos do projeto; manter requisitos aprovados no vault sem links de conversas privadas.
+- Manter o histórico existente nesta preparação: não foram identificados segredos na verificação direcionada dos seis commits locais. Versões antigas ainda contêm referências pessoais e e-mail; a limpeza do estado atual não remove esse histórico.
+- Configurar e-mail noreply somente neste repositório para commits futuros.
+- Definir a licença do código e conferir a origem dos assets antes de publicar. Licenças de dependências e materiais de terceiros permanecem próprias.
+- Esta etapa não altera a visibilidade no GitHub nem constitui validação de uma release pública do aplicativo.

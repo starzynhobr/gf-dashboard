@@ -2,7 +2,7 @@
 tipo: plano
 status: em-execucao
 ordem: linear
-atualizado_em: 2026-08-27
+atualizado_em: 2026-09-30
 ---
 
 # Plano Mestre de Implementação
@@ -10,6 +10,10 @@ atualizado_em: 2026-08-27
 ## Como executar
 
 Este é o caminho linear. Cada etapa termina com evidência e um portão. Não iniciar a etapa seguinte com pendência crítica no portão atual. IDs de trabalho vêm de [[06 - Backlog]].
+
+## Preparação para consulta pública do código
+
+PUB-001 é uma manutenção de privacidade e documentação, sem mudar a ordem dos slices nem os portões de release. PUB-002 registra a licença MIT escolhida e as fontes conhecidas dos assets. Publicar no GitHub e distribuir executáveis continuam ações separadas. O histórico existente é preservado; referências pessoais anteriores e e-mail permanecem nos commits antigos.
 
 ## Etapa 0 — Congelar requisitos e referências
 
