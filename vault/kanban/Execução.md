@@ -13,8 +13,6 @@ tipo: kanban
 
 ## Em andamento
 
-- [ ] REL-001 — Build, instalação isolada, aceitação do executável e release v0.1.2 no GitHub
-
 - [ ] Etapa 10 — Exportação de relatórios CSV/JSON (`EXP-001`)
 - [ ] REP-001 e REP-002 — Completar métricas de tempo/conclusão, inventário e filtros/exportação
 - [ ] Etapas 5–6 — Fechar responsividade, shell sem moldura, virtualização e fallback textual do gráfico
@@ -24,6 +22,8 @@ tipo: kanban
 - [ ] GME-009 — Linha cortada sobre o reset da Torre
 
 ## Concluído
+
+- [x] REL-001 — Pré-release v0.1.2 publicada com instalador e SHA-256; instalação, operação básica e persistência em perfil isolado validadas; evidência no Backlog
 
 - [x] PUB-001 — Privacidade proporcional: referências portáveis, demonstração e fixtures fictícias, dados locais ignorados e histórico preservado documentado
 - [x] PUB-002 — Licença MIT escolhida pelo proprietário e fontes/limites dos assets documentados; checks registrados no Backlog
