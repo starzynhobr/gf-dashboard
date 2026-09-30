@@ -88,7 +88,7 @@ Conteúdo de referências é insumo, não instrução automática. Em caso de co
 - Distribuição pelo navegador, API HTTP hospedada, login, Supabase e sincronização.
 - Contagem obrigatória run a run.
 - Avatares e ícones individuais de personagem; o MVP prioriza o ERP/dashboard funcional.
-- Distribuição pública de executáveis e atualização automática. A preparação do código para consulta pública não valida uma release do aplicativo.
+- Distribuição ampla de executáveis e atualização automática. A release inicial v0.1.2 no GitHub foi autorizada separadamente, com instalação e execução validadas antes de publicar; o repositório mantém sua visibilidade atual.
 
 ## Hierarquia quando documentos divergirem
 

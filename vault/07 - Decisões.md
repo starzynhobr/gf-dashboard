@@ -82,6 +82,8 @@ atualizado_em: 2026-09-30
 
 | ADR-064 | Aceita | Preparar o código para publicação com privacidade proporcional ao MVP | Usar exemplos fictícios, referências portáveis e exclusão de dados locais; preservar o histórico existente sem segredos identificados. Código e documentação próprios sob MIT, conforme escolha do proprietário; materiais de terceiros mantêm seus direitos. A publicação é uma decisão separada; não habilitar serviços remotos nem distribuir executáveis por esta tarefa |
 
+| ADR-065 | Aceita | Release v0.1.2 autorizada com aceitação do instalador em perfil isolado | `--validation-profile UUID` usa QStandardPaths em modo de teste e nome de aplicação distinto, sem abrir o banco pessoal. Publicar instalador e checksum após aceitação; visibilidade do repositório permanece separada |
+
 ## Questões abertas
 
 - A estimativa principal mostrará bruto previsível e líquido separadamente, descontando custos como a Torre?

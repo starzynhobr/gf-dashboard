@@ -98,3 +98,7 @@ Se abrir ou migrar falhar:
 - Configurar e-mail noreply somente neste repositório para commits futuros.
 - Definir a licença do código e conferir a origem dos assets antes de publicar. Licenças de dependências e materiais de terceiros permanecem próprias.
 - Esta etapa não altera a visibilidade no GitHub nem constitui validação de uma release pública do aplicativo.
+
+## Aceitação de instaladores
+
+Para conferir pacotes sem abrir o banco pessoal, usar `--validation-profile UUID` no executável instalado. O parâmetro aceita somente UUID e separa os dados pelo nome do aplicativo em modo de teste do Qt. Manter o mesmo UUID entre reaberturas/reinstalações de teste. Trocar somente APPDATA/LOCALAPPDATA não isola QStandardPaths no Windows. Documentar host, fluxo exercitado, integridade/persistência e limites; não tratar essa checagem como validação em máquina limpa.

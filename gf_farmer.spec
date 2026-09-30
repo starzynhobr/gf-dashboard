@@ -6,6 +6,7 @@ project_root = Path('.').resolve()
 
 # Include compiled frontend
 datas = [
+    (str(project_root / 'LICENSE'), '.'),
     (str(project_root / 'frontend' / 'dist'), 'frontend/dist'),
     (str(project_root / 'build_assets' / 'app_icon.ico'), 'assets'),
     (str(project_root / 'frontend' / 'src' / 'assets' / 'gf-farmer-mark.png'), 'assets'),

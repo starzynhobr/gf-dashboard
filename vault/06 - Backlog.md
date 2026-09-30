@@ -102,6 +102,8 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 
 ## Preparação do repositório público
 
+- [ ] **REL-001** Gerar e publicar v0.1.2 no GitHub após validar pacote instalado, WebChannel, escrita e reabertura em perfil isolado; incluir checksum e limites da validação.
+
 - [x] **PUB-001** Remover referências pessoais do estado atual, anonimizar a demonstração, ignorar dados locais e documentar limites da publicação; aceite: checks frontend passam, referências removidas não aparecem no estado atual e o histórico preservado é informado.
 - [x] **PUB-002** Registrar a licença MIT escolhida pelo proprietário e documentar fontes conhecidas e limites dos assets; aceite: LICENSE e README coerentes, sem atribuir direitos sobre materiais de terceiros.
 
@@ -135,3 +137,7 @@ Definir problema, usuário, dado necessário, riscos, critério de aceite e marc
 ## Evidência da preparação para publicação — 2026-09-30
 
 PUB-001/PUB-002: 55 testes Python e 34 frontend passaram; Ruff check/format, mypy, ESLint, typecheck, build Vite e `uv lock --check` passaram. O build mantém aviso de chunk acima de 500 kB, sem falha. `git diff --check` e wikilinks do vault verificados; busca dirigida no estado atual não encontrou os caminhos pessoais, link da conversa e apelidos removidos. Padrões de exclusão conferidos e arquivo `temp/1.png` preservado. Licença MIT adicionada e e-mail noreply configurado somente no Git local. Histórico, commits e visibilidade remota não foram alterados; as referências pessoais antigas permanecem no histórico. A origem dos assets foi registrada conforme a documentação existente, sem certificar direitos de terceiros nem validar distribuição pública do instalador.
+
+## Evidência de REL-001 — 2026-09-30
+
+Build v0.1.2: instalador de 146,57 MiB, SHA-256 `ac45854c75baa05c5f0ea0d90f47f46d03b26d7117e18aefcde182e157548350`. 57 testes Python e 34 frontend; lint, formatação, tipos, lockfile e build passaram. Instalado por usuário em pasta isolada no Windows 11, exit 0 e sem reinício. O executável instalado usa o build estático e mostrou WebChannel Online; cadastro de workspace/conta/personagem, conclusão de 9 dungeons (45 rodadas, 46.975 gold) e relatórios conferidos pela UI. Reabertura e desinstalação/reinstalação preservaram fatos; banco de validação em `qttest` com UUID distinto do perfil pessoal, integridade OK e hash inalterado durante a desinstalação. Executável instalado com hash igual ao build; LICENSE incluída. Sem VM/máquina limpa; instalador não assinado. Aviso de chunk frontend >500 kB permanece. Não há migration nova. Artefato aprovado para publicação como pré-release; publicação será confirmada separadamente.

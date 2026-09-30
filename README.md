@@ -2,6 +2,10 @@
 
 MVP desktop local para controle de farm em Grand Fantasia.
 
+## Download
+
+A [pré-release v0.1.2](https://github.com/starzynhobr/gf-dashboard/releases/tag/v0.1.2) contém o instalador Windows x64 e seu checksum SHA-256. O MVP permanece em desenvolvimento; os limites da validação estão nas notas da release.
+
 ## Arquitetura inicial
 
 - Python para domínio, aplicação e persistência local;
@@ -64,3 +68,7 @@ O vault contém o planejamento do produto. Referências privadas não são neces
 O código e a documentação próprios do projeto estão sob a licença [MIT](LICENSE). Dependências e materiais de terceiros mantêm suas respectivas licenças; a MIT do projeto não concede direitos sobre marcas ou conteúdo de Grand Fantasia.
 
 A interface usa ícones Phosphor e fontes do sistema, sem arquivos de fonte empacotados. A marca raster é registrada como ativo próprio em `design-qa.md`. O mockup e as capturas de comparação são referências de design; não são uma biblioteca de assets do jogo para redistribuição.
+
+## Validação do pacote instalado
+
+Para conferir o executável sem abrir o banco pessoal, execute `"GF Farmer.exe" --validation-profile UUID`, substituindo UUID por um identificador novo. Esse modo usa o diretório de teste do Qt e um perfil separado. Reutilize o mesmo UUID para validar persistência ao reabrir. Sem o parâmetro, o aplicativo mantém seu caminho de dados normal.

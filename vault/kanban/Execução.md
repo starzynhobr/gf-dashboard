@@ -13,6 +13,8 @@ tipo: kanban
 
 ## Em andamento
 
+- [ ] REL-001 — Build, instalação isolada, aceitação do executável e release v0.1.2 no GitHub
+
 - [ ] Etapa 10 — Exportação de relatórios CSV/JSON (`EXP-001`)
 - [ ] REP-001 e REP-002 — Completar métricas de tempo/conclusão, inventário e filtros/exportação
 - [ ] Etapas 5–6 — Fechar responsividade, shell sem moldura, virtualização e fallback textual do gráfico

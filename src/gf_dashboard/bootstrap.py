@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import sys
 
-from PySide6.QtCore import QCoreApplication
+from PySide6.QtCore import QCoreApplication, QStandardPaths
 from PySide6.QtWidgets import QApplication
 
 from gf_dashboard import __version__
@@ -13,6 +13,7 @@ from gf_dashboard.infrastructure.persistence import (
     SqliteDatabase,
     migrate_personal_database,
 )
+from gf_dashboard.runtime import validation_profile_id
 
 
 def configure_logging() -> None:
@@ -23,10 +24,15 @@ def configure_logging() -> None:
 
 
 def create_application(argv: list[str] | None = None) -> QApplication:
+    arguments = argv if argv is not None else sys.argv
+    profile = validation_profile_id(arguments)
+    QStandardPaths.setTestModeEnabled(profile is not None)
     QCoreApplication.setOrganizationName("STZ Labs")
-    QCoreApplication.setApplicationName("GF Farmer")
+    QCoreApplication.setApplicationName(
+        f"GF Farmer Validation {profile}" if profile else "GF Farmer"
+    )
     QCoreApplication.setApplicationVersion(__version__)
-    return QApplication(argv if argv is not None else sys.argv)
+    return QApplication(arguments[:1] if profile else arguments)
 
 
 def main() -> int:

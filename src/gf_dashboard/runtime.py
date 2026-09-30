@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
+from uuid import UUID
 
 DEV_URL_ENV = "GF_DASHBOARD_DEV_URL"
 ALLOWED_DEV_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
@@ -41,3 +42,12 @@ def validated_dev_url(raw_url: str | None = None) -> str | None:
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError(f"{DEV_URL_ENV} não pode conter credenciais, query ou fragmento")
     return candidate.rstrip("/")
+
+
+def validation_profile_id(argv: list[str]) -> str | None:
+    """Accept only a UUID profile for installed-package acceptance checks."""
+    if "--validation-profile" not in argv[1:]:
+        return None
+    if len(argv) != 3 or argv[1] != "--validation-profile":
+        raise ValueError("Use --validation-profile seguido de um UUID")
+    return str(UUID(argv[2]))

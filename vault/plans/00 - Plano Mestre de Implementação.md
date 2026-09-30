@@ -13,7 +13,7 @@ Este é o caminho linear. Cada etapa termina com evidência e um portão. Não i
 
 ## Preparação para consulta pública do código
 
-PUB-001 é uma manutenção de privacidade e documentação, sem mudar a ordem dos slices nem os portões de release. PUB-002 registra a licença MIT escolhida e as fontes conhecidas dos assets. Publicar no GitHub e distribuir executáveis continuam ações separadas. O histórico existente é preservado; referências pessoais anteriores e e-mail permanecem nos commits antigos.
+PUB-001 é uma manutenção de privacidade e documentação, sem mudar a ordem dos slices nem os portões de release. PUB-002 registra a licença MIT escolhida e as fontes conhecidas dos assets. Publicar no GitHub e distribuir executáveis são ações separadas; REL-001 autoriza a release v0.1.2 após aceitação do instalador e do executável em perfil isolado. O histórico existente é preservado; referências pessoais anteriores e e-mail permanecem nos commits antigos.
 
 ## Etapa 0 — Congelar requisitos e referências
 
