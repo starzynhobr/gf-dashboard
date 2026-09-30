@@ -6,6 +6,8 @@ MVP desktop local para controle de farm em Grand Fantasia.
 
 A [pré-release v0.1.2](https://github.com/starzynhobr/gf-dashboard/releases/tag/v0.1.2) contém o instalador Windows x64 e seu checksum SHA-256. O MVP permanece em desenvolvimento; os limites da validação estão nas notas da release.
 
+As [capturas de demonstração](assets/screenshots/README.md) estão disponíveis para apresentação do projeto e uso futuro no site.
+
 ## Arquitetura inicial
 
 - Python para domínio, aplicação e persistência local;

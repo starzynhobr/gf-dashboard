@@ -23,6 +23,8 @@ tipo: kanban
 
 ## Concluído
 
+- [x] REL-002 — Screenshots fictícios da v0.1.2 em assets/screenshots e na release, com ZIP para reutilização no site
+
 - [x] REL-001 — Pré-release v0.1.2 publicada com instalador e SHA-256; instalação, operação básica e persistência em perfil isolado validadas; evidência no Backlog
 
 - [x] PUB-001 — Privacidade proporcional: referências portáveis, demonstração e fixtures fictícias, dados locais ignorados e histórico preservado documentado

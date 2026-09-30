@@ -102,6 +102,8 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 
 ## Preparação do repositório público
 
+- [x] **REL-002** Capturar Hoje, Personagens e Relatórios da v0.1.2 com dados fictícios; salvar originais em assets/screenshots e anexar JPGs/ZIP à release, preservando instalador e checksum.
+
 - [x] **REL-001** Gerar e publicar v0.1.2 no GitHub após validar pacote instalado, WebChannel, escrita e reabertura em perfil isolado; incluir checksum e limites da validação.
 
 - [x] **PUB-001** Remover referências pessoais do estado atual, anonimizar a demonstração, ignorar dados locais e documentar limites da publicação; aceite: checks frontend passam, referências removidas não aparecem no estado atual e o histórico preservado é informado.
@@ -141,3 +143,7 @@ PUB-001/PUB-002: 55 testes Python e 34 frontend passaram; Ruff check/format, myp
 ## Evidência de REL-001 — 2026-09-30
 
 Build v0.1.2: instalador de 146,57 MiB, SHA-256 `ac45854c75baa05c5f0ea0d90f47f46d03b26d7117e18aefcde182e157548350`. 57 testes Python e 34 frontend; lint, formatação, tipos, lockfile e build passaram. Instalado por usuário em pasta isolada no Windows 11, exit 0 e sem reinício. O executável instalado usa o build estático e mostrou WebChannel Online; cadastro de workspace/conta/personagem, conclusão de 9 dungeons (45 rodadas, 46.975 gold) e relatórios conferidos pela UI. Reabertura e desinstalação/reinstalação preservaram fatos; banco de validação em `qttest` com UUID distinto do perfil pessoal, integridade OK e hash inalterado durante a desinstalação. Executável instalado com hash igual ao build; LICENSE incluída. Sem VM/máquina limpa; instalador não assinado. Aviso de chunk frontend >500 kB permanece. Não há migration nova. Pré-release publicada em https://github.com/starzynhobr/gf-dashboard/releases/tag/v0.1.2, tag no commit `86f3d29`. Instalador e SHA256SUMS.txt enviados; digests e tamanhos no GitHub conferidos contra os arquivos locais. Instalação temporária removida e banco de teste preservado. O repositório permanece privado.
+
+## Evidência de REL-002 — 2026-09-30
+
+Três screenshots do executável v0.1.2: Hoje, Personagens e Relatórios, com duas contas/dez personagens e histórico inteiramente fictícios em perfil qttest separado. Originais JPEG 2560×1032 preservados sem recompressão em `assets/screenshots/v0.1.2/`, inspecionados visualmente. README inclui textos alternativos e contexto dos dados. Três JPGs e ZIP anexados à release, com previews Markdown nas notas; digests/tamanhos remotos conferidos e ZIP íntegro. Instalador e seu checksum preservados. Nenhuma mudança de código, schema ou build.
