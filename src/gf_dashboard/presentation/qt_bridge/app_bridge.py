@@ -803,6 +803,12 @@ class AppBridge(QObject):
                             "pveBagsEarnedChangeStatus": reports.kpis.pve_bags_change_status,
                             "isPartialMonth": reports.kpis.is_partial_month,
                             "comparisonPeriodDays": reports.kpis.comparison_period_days,
+                            "allTimeSalesMinor": reports.kpis.all_time_sales_minor,
+                            "allTimePveBagsEarned": reports.kpis.all_time_pve_bags_earned,
+                            "allTimeDailyAverageGold": (
+                                reports.kpis.all_time_daily_average_gold.amount
+                            ),
+                            "allTimeActiveDays": reports.kpis.all_time_active_days,
                         },
                         "dailyEvolution": [
                             {

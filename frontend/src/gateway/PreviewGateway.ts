@@ -275,6 +275,10 @@ export class PreviewGateway implements AppGateway {
         pveBagsEarnedChangeStatus: "valid",
         isPartialMonth: true,
         comparisonPeriodDays: 27,
+        allTimeSalesMinor: 542000,
+        allTimePveBagsEarned: 6250,
+        allTimeDailyAverageGold: 746176,
+        allTimeActiveDays: 170,
       },
       dailyEvolution: [
         { day: 1, activityDate: "2026-08-01", gold: 520000, runs: 70 },

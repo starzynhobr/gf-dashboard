@@ -849,6 +849,23 @@ describe("App", () => {
     expect(screen.getByText("Faturamento e histórico mensal")).toBeInTheDocument();
     expect(screen.getByText("parcial")).toBeInTheDocument();
 
+    // Hovering over "Farm do mês" reveals all-time farm total ("Farm total" / "126.850.000")
+    const farmMonthCard = screen.getByText("Farm do mês").closest(".kpi-card");
+    expect(farmMonthCard).not.toBeNull();
+    fireEvent.mouseEnter(farmMonthCard!);
+    expect(screen.getByText("Farm total")).toBeInTheDocument();
+    expect(screen.getByText("126.850.000")).toBeInTheDocument();
+    fireEvent.mouseLeave(farmMonthCard!);
+    expect(screen.getByText("Farm do mês")).toBeInTheDocument();
+
+    // Clicking "Desde o início" toggle switches all KPI cards to all-time mode
+    fireEvent.click(screen.getByRole("button", { name: "Desde o início" }));
+    expect(screen.getByText("Vendido desde o início")).toBeInTheDocument();
+    expect(screen.getByText("Farm total")).toBeInTheDocument();
+    expect(screen.getByText("Média diária geral")).toBeInTheDocument();
+    expect(screen.getByText("Sacos PvE desde o início")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mês atual" }));
+
     // Toggle to "Recentes" view to inspect recent individual sales
     const recentSalesBtn = screen.getByRole("button", { name: "Recentes" });
     fireEvent.click(recentSalesBtn);

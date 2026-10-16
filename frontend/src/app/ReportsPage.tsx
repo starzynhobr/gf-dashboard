@@ -75,6 +75,9 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
   const [targetError, setTargetError] = useState<string | null>(null);
   const [expenseHistoryOpen, setExpenseHistoryOpen] = useState(false);
   const [salesView, setSalesView] = useState<"monthly" | "recent">("monthly");
+  const [kpiScope, setKpiScope] = useState<"month" | "allTime">("month");
+  const [hoveredKpi, setHoveredKpi] = useState<string | null>(null);
+  const [showAllSessions, setShowAllSessions] = useState(false);
 
   const loadReports = useCallback(async () => {
     const res = await gateway.getReportsOverview();
@@ -187,116 +190,247 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
     finally { setTargetSaving(false); }
   };
 
+  const isCardAllTime = (cardId: string) =>
+    kpiScope === "allTime" ? hoveredKpi !== cardId : hoveredKpi === cardId;
+
+  const allTimeSalesMinor = kpis.allTimeSalesMinor ?? financialSummary.salesAmountMinor;
+  const allTimeBags = kpis.allTimePveBagsEarned ?? kpis.monthlyPveBagsEarned;
+  const allTimeDailyAvg = kpis.allTimeDailyAverageGold ?? kpis.dailyAverageGold;
+  const allTimeActiveDays = kpis.allTimeActiveDays ?? 0;
+
+  const visibleSessions = showAllSessions
+    ? workRoutineHistory.recentSessions
+    : workRoutineHistory.recentSessions.slice(0, 5);
+
   return (
     <div className="reports-page" data-testid="reports-page">
-      {/* Header Area */}
+      {/* Compact Header Area */}
       <header className="reports-header">
-        <div>
-          <span className="eyebrow text-xs uppercase tracking-wider text-slate-400">Visão Geral</span>
-          <h1 className="text-2xl font-bold text-slate-100">Relatórios</h1>
-          <p className="text-sm text-slate-400">Resumo do desempenho do farm, vendas e evolução acumulada.</p>
+        <div className="reports-header__title-group">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1>Relatórios</h1>
+            <span className="reports-period-badge">{reportPeriod}</span>
+          </div>
+          <p>Passe o mouse nos indicadores do topo (ou alterne ao lado) para comparar o mês atual com o acumulado desde o início.</p>
         </div>
         <div className="reports-controls">
-          <div className="filter-pill">
-            <span>{reportPeriod}</span>
+          <div className="sales-view-toggle" role="group" aria-label="Escopo dos indicadores">
+            <button
+              type="button"
+              className={`sales-toggle-btn ${kpiScope === "month" ? "sales-toggle-btn--active" : ""}`}
+              onClick={() => setKpiScope("month")}
+            >
+              Mês atual
+            </button>
+            <button
+              type="button"
+              className={`sales-toggle-btn ${kpiScope === "allTime" ? "sales-toggle-btn--active" : ""}`}
+              onClick={() => setKpiScope("allTime")}
+            >
+              Desde o início
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Top 5 KPI Stat Cards */}
-      <section className="reports-kpi-grid">
-        {/* Card 1: Vendido no mês */}
-        <div className="kpi-card kpi-card--green">
-          <div className="kpi-icon kpi-icon--green">
-            <CurrencyDollar size={24} weight="duotone" />
-          </div>
-          <div className="kpi-body">
-            <span className="kpi-label">Vendido no mês</span>
-            <strong className="kpi-value">{currencyFormat.format(kpis.monthlySalesMinor / 100)}</strong>
-            <span className="kpi-subtext">
-              Mês passado (completo): {currencyFormat.format((kpis.previousSalesMinor ?? 0) / 100)}
-            </span>
-            {kpis.salesChangeStatus === "no_baseline" ? (
-              <span className="kpi-badge kpi-badge--neutral">Sem base comparável</span>
-            ) : kpis.salesChangePercent !== null ? (
-              <span className={`kpi-badge ${kpis.salesChangePercent >= 0 ? "kpi-badge--positive" : "kpi-badge--negative"}`}>
-                {kpis.salesChangePercent >= 0 ? "+" : ""}{kpis.salesChangePercent}% vs mês passado
-              </span>
-            ) : (
-              <span className="kpi-badge kpi-badge--neutral">Sem movimentação</span>
-            )}
-          </div>
-        </div>
+      {/* Top 4 Monthly KPI Cards (with All-Time on Hover) */}
+      <section className="reports-kpi-grid" data-testid="reports-kpi-grid">
+        {/* Card 1: Vendido no mês <-> Vendido desde o início */}
+        {(() => {
+          const showAllTime = isCardAllTime("sales");
+          return (
+            <div
+              className="kpi-card kpi-card--green kpi-card--interactive"
+              onMouseEnter={() => setHoveredKpi("sales")}
+              onMouseLeave={() => setHoveredKpi(null)}
+              onFocus={() => setHoveredKpi("sales")}
+              onBlur={() => setHoveredKpi(null)}
+              tabIndex={0}
+            >
+              <div className="kpi-icon kpi-icon--green">
+                <CurrencyDollar size={22} weight="duotone" />
+              </div>
+              <div className="kpi-body">
+                <div className="kpi-label-row">
+                  <span className="kpi-label">
+                    {showAllTime ? "Vendido desde o início" : "Vendido no mês"}
+                  </span>
+                  <span className="kpi-hover-pill">{showAllTime ? "Total" : "Mês"}</span>
+                </div>
+                <strong className="kpi-value">
+                  {currencyFormat.format((showAllTime ? allTimeSalesMinor : kpis.monthlySalesMinor) / 100)}
+                </strong>
+                {showAllTime ? (
+                  <>
+                    <span className="kpi-subtext">
+                      No mês atual: {currencyFormat.format(kpis.monthlySalesMinor / 100)}
+                    </span>
+                    <span className="kpi-badge kpi-badge--neutral">Acumulado geral em R$</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="kpi-subtext">
+                      Mês passado (completo): {currencyFormat.format((kpis.previousSalesMinor ?? 0) / 100)}
+                    </span>
+                    {kpis.salesChangeStatus === "no_baseline" ? (
+                      <span className="kpi-badge kpi-badge--neutral">Sem base comparável</span>
+                    ) : kpis.salesChangePercent !== null ? (
+                      <span className={`kpi-badge ${kpis.salesChangePercent >= 0 ? "kpi-badge--positive" : "kpi-badge--negative"}`}>
+                        {kpis.salesChangePercent >= 0 ? "+" : ""}{kpis.salesChangePercent}% vs mês passado
+                      </span>
+                    ) : (
+                      <span className="kpi-badge kpi-badge--neutral">Sem movimentação</span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
-        {/* Card 2: Farm do mês */}
-        <div className="kpi-card kpi-card--gold">
-          <div className="kpi-icon kpi-icon--gold">
-            <Coins size={24} weight="duotone" />
-          </div>
-          <div className="kpi-body">
-            <span className="kpi-label">Farm do mês</span>
-            <strong className="kpi-value">{numberFormat.format(kpis.monthlyFarmGold)}</strong>
-            <span className="kpi-subtext">
-              Mês passado (completo): {numberFormat.format(kpis.previousFarmGold ?? 0)} gold
-            </span>
-            {kpis.farmGoldChangeStatus === "no_baseline" ? (
-              <span className="kpi-badge kpi-badge--neutral">Sem base comparável</span>
-            ) : kpis.farmGoldChangePercent !== null ? (
-              <span className={`kpi-badge ${kpis.farmGoldChangePercent >= 0 ? "kpi-badge--positive" : "kpi-badge--negative"}`}>
-                {kpis.farmGoldChangePercent >= 0 ? "+" : ""}{kpis.farmGoldChangePercent}% vs mês passado
-              </span>
-            ) : (
-              <span className="kpi-badge kpi-badge--neutral">Sem movimentação</span>
-            )}
-          </div>
-        </div>
+        {/* Card 2: Farm do mês <-> Farm total desde o início */}
+        {(() => {
+          const showAllTime = isCardAllTime("farm");
+          return (
+            <div
+              className="kpi-card kpi-card--gold kpi-card--interactive"
+              onMouseEnter={() => setHoveredKpi("farm")}
+              onMouseLeave={() => setHoveredKpi(null)}
+              onFocus={() => setHoveredKpi("farm")}
+              onBlur={() => setHoveredKpi(null)}
+              tabIndex={0}
+            >
+              <div className="kpi-icon kpi-icon--gold">
+                {showAllTime ? <Package size={22} weight="duotone" /> : <Coins size={22} weight="duotone" />}
+              </div>
+              <div className="kpi-body">
+                <div className="kpi-label-row">
+                  <span className="kpi-label">
+                    {showAllTime ? "Farm total" : "Farm do mês"}
+                  </span>
+                  <span className="kpi-hover-pill">{showAllTime ? "Total" : "Mês"}</span>
+                </div>
+                <strong className="kpi-value">
+                  {numberFormat.format(showAllTime ? kpis.allTimeFarmGold : kpis.monthlyFarmGold)}
+                </strong>
+                {showAllTime ? (
+                  <>
+                    <span className="kpi-subtext">Desde o início</span>
+                    <span className="kpi-badge kpi-badge--neutral">
+                      No mês: {numberFormat.format(kpis.monthlyFarmGold)} gold
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="kpi-subtext">
+                      Mês passado (completo): {numberFormat.format(kpis.previousFarmGold ?? 0)} gold
+                    </span>
+                    {kpis.farmGoldChangeStatus === "no_baseline" ? (
+                      <span className="kpi-badge kpi-badge--neutral">Sem base comparável</span>
+                    ) : kpis.farmGoldChangePercent !== null ? (
+                      <span className={`kpi-badge ${kpis.farmGoldChangePercent >= 0 ? "kpi-badge--positive" : "kpi-badge--negative"}`}>
+                        {kpis.farmGoldChangePercent >= 0 ? "+" : ""}{kpis.farmGoldChangePercent}% vs mês passado
+                      </span>
+                    ) : (
+                      <span className="kpi-badge kpi-badge--neutral">Sem movimentação</span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
-        {/* Card 3: Farm total */}
-        <div className="kpi-card kpi-card--purple">
-          <div className="kpi-icon kpi-icon--purple">
-            <Package size={24} weight="duotone" />
-          </div>
-          <div className="kpi-body">
-            <span className="kpi-label">Farm total</span>
-            <strong className="kpi-value">{numberFormat.format(kpis.allTimeFarmGold)}</strong>
-            <span className="kpi-subtext">Desde o início</span>
-          </div>
-        </div>
+        {/* Card 3: Média diária (no mês <-> desde o início) */}
+        {(() => {
+          const showAllTime = isCardAllTime("avg");
+          return (
+            <div
+              className="kpi-card kpi-card--blue kpi-card--interactive"
+              onMouseEnter={() => setHoveredKpi("avg")}
+              onMouseLeave={() => setHoveredKpi(null)}
+              onFocus={() => setHoveredKpi("avg")}
+              onBlur={() => setHoveredKpi(null)}
+              tabIndex={0}
+            >
+              <div className="kpi-icon kpi-icon--blue">
+                <TrendUp size={22} weight="duotone" />
+              </div>
+              <div className="kpi-body">
+                <div className="kpi-label-row">
+                  <span className="kpi-label">
+                    {showAllTime ? "Média diária geral" : "Média diária"}
+                  </span>
+                  <span className="kpi-hover-pill">{showAllTime ? "Total" : "Mês"}</span>
+                </div>
+                <strong className="kpi-value">
+                  {numberFormat.format(showAllTime ? allTimeDailyAvg : kpis.dailyAverageGold)}
+                </strong>
+                <span className="kpi-subtext">gold/dia farmado</span>
+                <span className="kpi-badge kpi-badge--neutral">
+                  {showAllTime
+                    ? allTimeActiveDays > 0
+                      ? `Em ${allTimeActiveDays} dias ativos`
+                      : "Desde o início"
+                    : `Total geral: ${formatCompactGold(kpis.allTimeFarmGold)}`}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
-        {/* Card 4: Média diária */}
-        <div className="kpi-card kpi-card--blue">
-          <div className="kpi-icon kpi-icon--blue">
-            <TrendUp size={24} weight="duotone" />
-          </div>
-          <div className="kpi-body">
-            <span className="kpi-label">Média diária</span>
-            <strong className="kpi-value">{numberFormat.format(kpis.dailyAverageGold)}</strong>
-            <span className="kpi-subtext">gold/dia farmado</span>
-          </div>
-        </div>
-
-        {/* Card 5: Sacos PvE ganhos */}
-        <div className="kpi-card kpi-card--teal">
-          <div className="kpi-icon kpi-icon--teal">
-            <Tote size={24} weight="duotone" />
-          </div>
-          <div className="kpi-body">
-            <span className="kpi-label">Sacos PvE ganhos</span>
-            <strong className="kpi-value">{numberFormat.format(kpis.monthlyPveBagsEarned)}</strong>
-            <span className="kpi-subtext">
-              Mês passado (completo): {numberFormat.format(kpis.previousPveBagsEarned ?? 0)} sacos
-            </span>
-            {kpis.pveBagsEarnedChangeStatus === "no_baseline" ? (
-              <span className="kpi-badge kpi-badge--neutral">Sem base comparável</span>
-            ) : kpis.pveBagsEarnedChangePercent !== null ? (
-              <span className={`kpi-badge ${kpis.pveBagsEarnedChangePercent >= 0 ? "kpi-badge--positive" : "kpi-badge--negative"}`}>
-                {kpis.pveBagsEarnedChangePercent >= 0 ? "+" : ""}{kpis.pveBagsEarnedChangePercent}% vs mês passado
-              </span>
-            ) : (
-              <span className="kpi-badge kpi-badge--neutral">Sem movimentação</span>
-            )}
-          </div>
-        </div>
+        {/* Card 4: Sacos PvE ganhos (no mês <-> desde o início) */}
+        {(() => {
+          const showAllTime = isCardAllTime("bags");
+          return (
+            <div
+              className="kpi-card kpi-card--teal kpi-card--interactive"
+              onMouseEnter={() => setHoveredKpi("bags")}
+              onMouseLeave={() => setHoveredKpi(null)}
+              onFocus={() => setHoveredKpi("bags")}
+              onBlur={() => setHoveredKpi(null)}
+              tabIndex={0}
+            >
+              <div className="kpi-icon kpi-icon--teal">
+                <Tote size={22} weight="duotone" />
+              </div>
+              <div className="kpi-body">
+                <div className="kpi-label-row">
+                  <span className="kpi-label">
+                    {showAllTime ? "Sacos PvE desde o início" : "Sacos PvE ganhos"}
+                  </span>
+                  <span className="kpi-hover-pill">{showAllTime ? "Total" : "Mês"}</span>
+                </div>
+                <strong className="kpi-value">
+                  {numberFormat.format(showAllTime ? allTimeBags : kpis.monthlyPveBagsEarned)}
+                </strong>
+                {showAllTime ? (
+                  <>
+                    <span className="kpi-subtext">
+                      No mês atual: {numberFormat.format(kpis.monthlyPveBagsEarned)} sacos
+                    </span>
+                    <span className="kpi-badge kpi-badge--neutral">Acumulado desde o início</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="kpi-subtext">
+                      Mês passado (completo): {numberFormat.format(kpis.previousPveBagsEarned ?? 0)} sacos
+                    </span>
+                    {kpis.pveBagsEarnedChangeStatus === "no_baseline" ? (
+                      <span className="kpi-badge kpi-badge--neutral">Sem base comparável</span>
+                    ) : kpis.pveBagsEarnedChangePercent !== null ? (
+                      <span className={`kpi-badge ${kpis.pveBagsEarnedChangePercent >= 0 ? "kpi-badge--positive" : "kpi-badge--negative"}`}>
+                        {kpis.pveBagsEarnedChangePercent >= 0 ? "+" : ""}{kpis.pveBagsEarnedChangePercent}% vs mês passado
+                      </span>
+                    ) : (
+                      <span className="kpi-badge kpi-badge--neutral">Sem movimentação</span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </section>
 
       {/* Row 1: Evolução do Mês + Comparativo Mensal */}
@@ -312,9 +446,9 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
               <span>Gold por dia</span>
             </div>
           </div>
-          <div className="chart-container" style={{ width: "100%", height: 230 }}>
+          <div className="chart-container" style={{ width: "100%", height: 195 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyEvolution} margin={{ top: 12, right: 20, bottom: 0, left: -5 }}>
+              <AreaChart data={dailyEvolution} margin={{ top: 10, right: 16, bottom: 0, left: -8 }}>
                 <defs>
                   <linearGradient id="blueEvolGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#4f80ff" stopOpacity={0.45} />
@@ -359,9 +493,9 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
           <div className="comparative-body">
             <div className="comparative-highlight">
               {monthlyComparison.growthStatus === "no_baseline" ? (
-                <span className="text-slate-300 font-bold text-lg">Sem base comparável</span>
+                <span className="text-slate-300 font-bold text-base">Sem base comparável</span>
               ) : (
-                <span className={`${(monthlyComparison.growthPercent ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"} font-bold text-xl`}>
+                <span className={`${(monthlyComparison.growthPercent ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"} font-bold text-lg`}>
                   {(monthlyComparison.growthPercent ?? 0) >= 0 ? "+" : ""}{monthlyComparison.growthPercent}%
                 </span>
               )}
@@ -372,9 +506,9 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
                 {formatCompactGold(monthlyComparison.currentMonthGold)} vs {formatCompactGold(monthlyComparison.previousMonthGold)}
               </span>
             </div>
-            <div className="chart-container" style={{ width: "100%", height: 155 }}>
+            <div className="chart-container" style={{ width: "100%", height: 130 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} margin={{ top: 15, right: 10, bottom: 0, left: -10 }}>
+                <BarChart data={barData} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
                   <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#8293a5", fontSize: 10 }} />
                   <YAxis
@@ -387,7 +521,7 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
                     formatter={(value) => [`${numberFormat.format(Number(value))} gold`, "Total"]}
                     contentStyle={{ background: "#0c2232", border: "1px solid #294054", borderRadius: 8, fontSize: 12, color: "#edf3fb" }} itemStyle={{ color: "#edf3fb" }} labelStyle={{ color: "#c7d8e8" }}
                   />
-                  <Bar dataKey="gold" radius={[4, 4, 0, 0]} maxBarSize={48}>
+                  <Bar dataKey="gold" radius={[4, 4, 0, 0]} maxBarSize={44}>
                     {barData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.isCurrent ? "#4f80ff" : "#4a5568"} />
                     ))}
@@ -463,7 +597,7 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
         </div>
       </section>
 
-      {/* Row 3: Últimas vendas + Meta do mês + Top personagens */}
+      {/* Row 3: Vendas em R$ + (Meta do mês + Top personagens) */}
       <section className="reports-grid-row reports-grid-row--bottom">
         {/* Vendas e faturamento */}
         <div className="panel bottom-panel bottom-panel--sales">
@@ -494,9 +628,9 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
             <div className="monthly-sales-view">
               {monthlySalesData.length ? (
                 <>
-                  <div className="chart-container" style={{ width: "100%", height: 145 }}>
+                  <div className="chart-container" style={{ width: "100%", height: 130 }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={monthlySalesData} margin={{ top: 12, right: 10, bottom: 0, left: -5 }}>
+                      <BarChart data={monthlySalesData} margin={{ top: 10, right: 10, bottom: 0, left: -5 }}>
                         <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#8293a5", fontSize: 10 }} />
                         <YAxis
@@ -519,7 +653,7 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
                           itemStyle={{ color: "#edf3fb" }}
                           labelStyle={{ color: "#c7d8e8" }}
                         />
-                        <Bar dataKey="amountBrl" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                        <Bar dataKey="amountBrl" radius={[4, 4, 0, 0]} maxBarSize={38}>
                           {monthlySalesData.map((entry, index) => (
                             <Cell
                               key={`sales-bar-${index}`}
@@ -600,7 +734,7 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
         <div className="panel bottom-panel bottom-panel--target target-panel-action" role="button" tabIndex={0} onClick={openTargetDialog} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") openTargetDialog(); }} aria-label="Definir meta mensal de gold">
           <div className="panel-heading">
             <h2>Meta do mês</h2>
-            <Target size={20} className="text-indigo-400" />
+            <Target size={18} className="text-indigo-400" />
           </div>
           <div className="target-body">
             <div className="target-header-line">
@@ -658,17 +792,76 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
           </div>
         </div>
       </section>
+
+      {/* Row 4: Compact Routine History */}
       <section className="panel routine-history-panel" aria-labelledby="routine-history-title">
-        <div className="panel-heading">
-          <div><h2 id="routine-history-title">Tempo de rotina</h2><span className="chart-sub">Sessões com 5 min ativos ou mais; pausas não contam</span></div>
-          <Timer size={20} className="text-indigo-300" weight="duotone" />
+        <div className="routine-history-header">
+          <div className="routine-history-title-block">
+            <div className="flex items-center gap-2">
+              <Timer size={18} className="text-indigo-300" weight="duotone" />
+              <h2 id="routine-history-title">Tempo de rotina</h2>
+            </div>
+            <span className="chart-sub">Sessões com 5 min ativos ou mais; pausas não contam</span>
+          </div>
+          <div className="routine-history-summary">
+            <div className="routine-stat-pill">
+              <span>No mês</span>
+              <strong>{formatDuration(workRoutineHistory.monthSeconds)}</strong>
+              <small>{workRoutineHistory.monthSessionCount} sessões encerradas</small>
+            </div>
+            <div className="routine-stat-pill">
+              <span>Esta semana</span>
+              <strong>{formatDuration(workRoutineHistory.weekSeconds)}</strong>
+              <small className={routineWeekChange >= 0 ? "text-emerald-400" : "text-rose-300"}>
+                {routineWeekChange >= 0 ? "+" : ""}{routineWeekChange}% vs semana passada
+              </small>
+            </div>
+            <div className="routine-stat-pill">
+              <span>Média por dia ativo</span>
+              <strong>{formatDuration(routineDailyAverage)}</strong>
+              <small>{workRoutineHistory.activeDaysInMonth} dias com rotina</small>
+            </div>
+          </div>
         </div>
-        <div className="routine-history-summary">
-          <div><span>No mês</span><strong>{formatDuration(workRoutineHistory.monthSeconds)}</strong><small>{workRoutineHistory.monthSessionCount} sessões encerradas</small></div>
-          <div><span>Esta semana</span><strong>{formatDuration(workRoutineHistory.weekSeconds)}</strong><small className={routineWeekChange >= 0 ? "text-emerald-400" : "text-rose-300"}>{routineWeekChange >= 0 ? "+" : ""}{routineWeekChange}% vs semana passada</small></div>
-          <div><span>Média por dia ativo</span><strong>{formatDuration(routineDailyAverage)}</strong><small>{workRoutineHistory.activeDaysInMonth} dias com rotina</small></div>
-        </div>
-        {workRoutineHistory.recentSessions.length ? <div className="routine-history-table-wrap"><table className="routine-history-table"><thead><tr><th>Data</th><th>Início</th><th>Fim</th><th>Duração</th></tr></thead><tbody>{workRoutineHistory.recentSessions.map((session) => <tr key={session.id}><td>{formatShortDate(session.finishedAt).slice(0, 10)}</td><td>{formatShortDate(session.startedAt).slice(-5)}</td><td>{formatShortDate(session.finishedAt).slice(-5)}</td><td><strong>{formatDuration(session.elapsedSeconds)}</strong></td></tr>)}</tbody></table></div> : <div className="routine-history-empty">Encerre uma rotina com pelo menos 5 min ativos para ela aparecer aqui.</div>}
+        {workRoutineHistory.recentSessions.length ? (
+          <>
+            <div className="routine-history-table-wrap">
+              <table className="routine-history-table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Início</th>
+                    <th>Fim</th>
+                    <th>Duração</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleSessions.map((session) => (
+                    <tr key={session.id}>
+                      <td>{formatShortDate(session.finishedAt).slice(0, 10)}</td>
+                      <td>{formatShortDate(session.startedAt).slice(-5)}</td>
+                      <td>{formatShortDate(session.finishedAt).slice(-5)}</td>
+                      <td><strong>{formatDuration(session.elapsedSeconds)}</strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {workRoutineHistory.recentSessions.length > 5 && (
+              <div className="panel-footer-link">
+                <button type="button" onClick={() => setShowAllSessions((prev) => !prev)}>
+                  {showAllSessions
+                    ? "Mostrar menos sessões"
+                    : `Ver todas as ${workRoutineHistory.recentSessions.length} sessões recentes`}
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="routine-history-empty">
+            Encerre uma rotina com pelo menos 5 min ativos para ela aparecer aqui.
+          </div>
+        )}
       </section>
       {targetDialogOpen && <div className="dialog-backdrop" role="presentation" onMouseDown={() => !targetSaving && setTargetDialogOpen(false)}>
         <section className="edit-dialog target-dialog" role="dialog" aria-modal="true" aria-labelledby="monthly-target-title" onMouseDown={(event) => event.stopPropagation()}>

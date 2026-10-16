@@ -1093,16 +1093,24 @@ class SqliteDashboardReader:
             prev_month_gold = int(prev_facts["gold"]) if prev_facts else 0
             prev_month_bags = int(prev_facts["bags"]) if prev_facts else 0
 
-            # 3. All Time Farm Gold
+            # 3. All Time Farm Gold, Bags & Active Days
             all_time_row = connection.execute(
                 """
-                SELECT COALESCE(SUM(gold), 0) AS gold
+                SELECT COALESCE(SUM(gold), 0) AS gold,
+                       COALESCE(SUM(bags), 0) AS bags,
+                       COUNT(DISTINCT activity_date) AS active_days
                 FROM (
-                    SELECT ac.gold_reward_snapshot AS gold
+                    SELECT dae.activity_date AS activity_date,
+                           ac.gold_reward_snapshot AS gold,
+                           ac.pve_bags_snapshot AS bags
                     FROM activity_completions ac
+                    JOIN daily_activity_entries dae
+                      ON dae.id = ac.daily_activity_entry_id AND dae.deleted_at IS NULL
                     WHERE ac.workspace_id = ? AND ac.deleted_at IS NULL
                     UNION ALL
-                    SELECT fs.gold_earned AS gold
+                    SELECT fs.activity_date AS activity_date,
+                           fs.gold_earned AS gold,
+                           fs.pve_bags_earned AS bags
                     FROM farm_sessions fs
                     WHERE fs.workspace_id = ? AND fs.status = 'completed' AND fs.deleted_at IS NULL
                 )
@@ -1110,6 +1118,8 @@ class SqliteDashboardReader:
                 (workspace_id, workspace_id),
             ).fetchone()
             all_time_gold = int(all_time_row["gold"]) if all_time_row else 0
+            all_time_bags = int(all_time_row["bags"]) if all_time_row else 0
+            all_time_active_days = int(all_time_row["active_days"]) if all_time_row else 0
 
             # 4. Sales & Financials
             cur_sales_row = connection.execute(
@@ -1186,6 +1196,7 @@ class SqliteDashboardReader:
             growth_percent, growth_status = farm_gold_change_percent, farm_gold_change_status
 
             daily_avg_gold = cur_month_gold // max(1, active_farm_days)
+            all_time_daily_avg_gold = all_time_gold // max(1, all_time_active_days)
 
             kpis = ReportKpis(
                 monthly_sales_minor=monthly_sales_minor,
@@ -1204,6 +1215,10 @@ class SqliteDashboardReader:
                 sales_change_status=sales_change_status,
                 farm_gold_change_status=farm_gold_change_status,
                 pve_bags_change_status=pve_bags_change_status,
+                all_time_sales_minor=total_sales_minor,
+                all_time_pve_bags_earned=all_time_bags,
+                all_time_daily_average_gold=Gold(all_time_daily_avg_gold),
+                all_time_active_days=all_time_active_days,
             )
 
             # 5. Daily Evolution (Evolução do Mês)

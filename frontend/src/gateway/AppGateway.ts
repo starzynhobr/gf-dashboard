@@ -199,6 +199,10 @@ export interface ReportKpis {
   pveBagsEarnedChangeStatus?: "valid" | "no_baseline" | "no_activity";
   isPartialMonth?: boolean;
   comparisonPeriodDays?: number;
+  allTimeSalesMinor?: number;
+  allTimePveBagsEarned?: number;
+  allTimeDailyAverageGold?: number;
+  allTimeActiveDays?: number;
 }
 
 export interface DailyEvolutionPoint {

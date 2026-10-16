@@ -334,166 +334,166 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
 
   return (
     <div className="management-page history-page">
-      <div className="page-title">
-        <div>
-          <p className="page-kicker">Registro contínuo</p>
+      {/* Compact Header + Global Filters */}
+      <header className="history-top-header">
+        <div className="history-top-header__title">
           <h1>Histórico de farm</h1>
-          <span>Um dia fica completo quando todos os personagens ativos concluem suas dungeons selecionadas. Diárias operacionais e Torre são acompanhamentos separados.</span>
-        </div>
-      </div>
-
-      {error && <div className="error-banner" role="alert">{error}</div>}
-
-      {/* Filter Bar */}
-      <section className="panel history-filter-bar">
-        <div className="history-filter-group">
-          <Funnel size={16} weight="duotone" />
-          <span className="filter-label">Período:</span>
-          <div className="filter-chips">
-            <button
-              type="button"
-              className={datePreset === "7" ? "filter-chip filter-chip--active" : "filter-chip"}
-              onClick={() => setDatePreset("7")}
-            >
-              Últimos 7 dias
-            </button>
-            <button
-              type="button"
-              className={datePreset === "30" ? "filter-chip filter-chip--active" : "filter-chip"}
-              onClick={() => setDatePreset("30")}
-            >
-              Últimos 30 dias
-            </button>
-            <button
-              type="button"
-              className={datePreset === "all" ? "filter-chip filter-chip--active" : "filter-chip"}
-              onClick={() => setDatePreset("all")}
-            >
-              Todo o período
-            </button>
-          </div>
+          <span>Conferência de runs, diárias operacionais, Torre e conclusão por dia.</span>
         </div>
 
-        <div className="history-filter-selects">
-          <label>
-            <span>Conta:</span>
-            <select
-              value={selectedAccountId}
-              onChange={(e) => {
-                setSelectedAccountId(e.target.value);
-                setSelectedCharacterId("");
-              }}
-            >
-              <option value="">Todas as contas</option>
-              {accounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.serverName})
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            <span>Personagem:</span>
-            <select
-              value={selectedCharacterId}
-              onChange={(e) => setSelectedCharacterId(e.target.value)}
-            >
-              <option value="">Todos os personagens</option>
-              {availableCharacters.map((char) => (
-                <option key={char.id} value={char.id}>
-                  {char.name} ({char.className})
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </section>
-
-      {/* Event Type Filter Chips */}
-      {days.length > 0 && (
-        <section className="panel history-event-filters-bar">
+        <div className="history-top-controls">
           <div className="history-filter-group">
-            <span className="filter-label">Filtrar dias por:</span>
+            <Funnel size={15} weight="duotone" />
+            <span className="filter-label">Período:</span>
             <div className="filter-chips">
               <button
                 type="button"
-                className={eventFilter === "all" ? "filter-chip filter-chip--active" : "filter-chip"}
-                onClick={() => setEventFilter("all")}
+                className={datePreset === "7" ? "filter-chip filter-chip--active" : "filter-chip"}
+                onClick={() => setDatePreset("7")}
               >
-                Todos <span className="chip-count">({eventCounts.all})</span>
+                Últimos 7 dias
               </button>
               <button
                 type="button"
-                className={eventFilter === "incomplete" ? "filter-chip filter-chip--active" : "filter-chip"}
-                onClick={() => setEventFilter("incomplete")}
+                className={datePreset === "30" ? "filter-chip filter-chip--active" : "filter-chip"}
+                onClick={() => setDatePreset("30")}
               >
-                Incompletos <span className="chip-count">({eventCounts.incomplete})</span>
+                Últimos 30 dias
               </button>
               <button
                 type="button"
-                className={eventFilter === "tower" ? "filter-chip filter-chip--active" : "filter-chip"}
-                onClick={() => setEventFilter("tower")}
+                className={datePreset === "all" ? "filter-chip filter-chip--active" : "filter-chip"}
+                onClick={() => setDatePreset("all")}
               >
-                Torre <span className="chip-count">({eventCounts.tower})</span>
-              </button>
-              <button
-                type="button"
-                className={eventFilter === "drops" ? "filter-chip filter-chip--active" : "filter-chip"}
-                onClick={() => setEventFilter("drops")}
-              >
-                Drops <span className="chip-count">({eventCounts.drops})</span>
-              </button>
-              <button
-                type="button"
-                className={eventFilter === "routine" ? "filter-chip filter-chip--active" : "filter-chip"}
-                onClick={() => setEventFilter("routine")}
-              >
-                Rotinas <span className="chip-count">({eventCounts.routine})</span>
+                Todo o período
               </button>
             </div>
           </div>
-        </section>
-      )}
 
-      {/* Period Aggregated Summary Strip */}
-      {periodStats && (
-        <section className="panel history-period-summary">
-          <div className="period-stat-item">
-            <small>Dias registrados</small>
-            <strong>{periodStats.activeDays} dias</strong>
+          <div className="history-filter-selects">
+            <label>
+              <span>Conta:</span>
+              <select
+                value={selectedAccountId}
+                onChange={(e) => {
+                  setSelectedAccountId(e.target.value);
+                  setSelectedCharacterId("");
+                }}
+              >
+                <option value="">Todas as contas</option>
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.serverName})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Personagem:</span>
+              <select
+                value={selectedCharacterId}
+                onChange={(e) => setSelectedCharacterId(e.target.value)}
+              >
+                <option value="">Todos os personagens</option>
+                {availableCharacters.map((char) => (
+                  <option key={char.id} value={char.id}>
+                    {char.name} ({char.className})
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-          <div className="period-stat-divider" />
-          <div className="period-stat-item">
-            <small>Runs totais</small>
-            <strong>{numberFormat.format(periodStats.totalRuns)}</strong>
-          </div>
-          <div className="period-stat-divider" />
-          <div className="period-stat-item">
-            <small>Gold acumulado</small>
-            <strong className="gold-text">{formatCompactNumber(periodStats.totalGold)} gold</strong>
-          </div>
-          <div className="period-stat-divider" />
-          <div className="period-stat-item">
-            <small>Sacos PvE</small>
-            <strong>{numberFormat.format(periodStats.totalBags)}</strong>
-          </div>
-          {periodStats.totalRoutineSeconds > 0 && (
-            <>
+        </div>
+      </header>
+
+      {error && <div className="error-banner" role="alert">{error}</div>}
+
+      {/* Unified Period Summary + Event Filter Strip */}
+      {(periodStats || days.length > 0) && (
+        <section className="panel history-overview-bar">
+          {periodStats && (
+            <div className="history-period-summary">
+              <div className="period-stat-item">
+                <small>Dias registrados</small>
+                <strong>{periodStats.activeDays} dias</strong>
+              </div>
               <div className="period-stat-divider" />
               <div className="period-stat-item">
-                <small>Tempo em rotina</small>
-                <strong>{formatDetailedDuration(periodStats.totalRoutineSeconds)}</strong>
+                <small>Runs totais</small>
+                <strong>{numberFormat.format(periodStats.totalRuns)}</strong>
               </div>
-            </>
+              <div className="period-stat-divider" />
+              <div className="period-stat-item">
+                <small>Gold acumulado</small>
+                <strong className="gold-text">{formatCompactNumber(periodStats.totalGold)} gold</strong>
+              </div>
+              <div className="period-stat-divider" />
+              <div className="period-stat-item">
+                <small>Sacos PvE</small>
+                <strong>{numberFormat.format(periodStats.totalBags)}</strong>
+              </div>
+              {periodStats.totalRoutineSeconds > 0 && (
+                <>
+                  <div className="period-stat-divider" />
+                  <div className="period-stat-item">
+                    <small>Tempo em rotina</small>
+                    <strong>{formatDetailedDuration(periodStats.totalRoutineSeconds)}</strong>
+                  </div>
+                </>
+              )}
+              <div className="period-stat-divider" />
+              <div className="period-stat-item">
+                <small>Conclusão média</small>
+                <strong className={periodStats.avgCompletionRate >= 90 ? "text-emerald-400" : "text-amber-300"}>
+                  {periodStats.avgCompletionRate}%
+                </strong>
+              </div>
+            </div>
           )}
-          <div className="period-stat-divider" />
-          <div className="period-stat-item">
-            <small>Conclusão média</small>
-            <strong className={periodStats.avgCompletionRate >= 90 ? "text-emerald-400" : "text-amber-300"}>
-              {periodStats.avgCompletionRate}%
-            </strong>
-          </div>
+
+          {days.length > 0 && (
+            <div className="history-event-filters-inline">
+              <span className="filter-label">Filtrar dias por:</span>
+              <div className="filter-chips">
+                <button
+                  type="button"
+                  className={eventFilter === "all" ? "filter-chip filter-chip--active" : "filter-chip"}
+                  onClick={() => setEventFilter("all")}
+                >
+                  Todos <span className="chip-count">({eventCounts.all})</span>
+                </button>
+                <button
+                  type="button"
+                  className={eventFilter === "incomplete" ? "filter-chip filter-chip--active" : "filter-chip"}
+                  onClick={() => setEventFilter("incomplete")}
+                >
+                  Incompletos <span className="chip-count">({eventCounts.incomplete})</span>
+                </button>
+                <button
+                  type="button"
+                  className={eventFilter === "tower" ? "filter-chip filter-chip--active" : "filter-chip"}
+                  onClick={() => setEventFilter("tower")}
+                >
+                  Torre <span className="chip-count">({eventCounts.tower})</span>
+                </button>
+                <button
+                  type="button"
+                  className={eventFilter === "drops" ? "filter-chip filter-chip--active" : "filter-chip"}
+                  onClick={() => setEventFilter("drops")}
+                >
+                  Drops <span className="chip-count">({eventCounts.drops})</span>
+                </button>
+                <button
+                  type="button"
+                  className={eventFilter === "routine" ? "filter-chip filter-chip--active" : "filter-chip"}
+                  onClick={() => setEventFilter("routine")}
+                >
+                  Rotinas <span className="chip-count">({eventCounts.routine})</span>
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -597,27 +597,24 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
               </div>
             ) : (
               <div className="history-detail-container">
-                {/* 1. Day Summary Hero */}
+                {/* 1. Compact Day Summary Strip */}
                 <section className="panel history-day-hero">
                   <div className="history-hero-title-area">
-                    <div className="flex items-center gap-2">
-                      <span className="eyebrow">Resumo do dia</span>
-                      <span className={`day-status-pill day-status-pill--${selectedDayStatus}`}>
-                        {selectedDayStatus === "complete" && "✓ Completo"}
-                        {selectedDayStatus === "partial" && "Parcial"}
-                        {selectedDayStatus === "empty" && "Sem atividade"}
-                      </span>
-                    </div>
+                    <span className={`day-status-pill day-status-pill--${selectedDayStatus}`}>
+                      {selectedDayStatus === "complete" && "✓ Completo"}
+                      {selectedDayStatus === "partial" && "Parcial"}
+                      {selectedDayStatus === "empty" && "Sem atividade"}
+                    </span>
                     <h2>{fullDateFormat.format(new Date(dayDetail.activityDate + "T12:00:00"))}</h2>
                   </div>
 
                   <div className="history-hero-kpis">
                     <div className="kpi-box">
-                      <small>Runs feitas</small>
+                      <small>Runs</small>
                       <strong>{dayDetail.runsCompleted}</strong>
                     </div>
                     <div className="kpi-box">
-                      <small>Ouro obtido</small>
+                      <small>Ouro</small>
                       <strong className="gold-text">{numberFormat.format(dayDetail.goldEarned)} gold</strong>
                     </div>
                     <div className="kpi-box">
@@ -630,7 +627,7 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
                     </div>
                     {dayDetail.routineDurationSeconds ? (
                       <div className="kpi-box">
-                        <small>Duração da rotina</small>
+                        <small>Rotina</small>
                         <strong>{formatDetailedDuration(dayDetail.routineDurationSeconds)}</strong>
                       </div>
                     ) : null}
@@ -644,7 +641,7 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
                     )}
                     {dayDetail.drops.length > 0 && (
                       <div className="kpi-box">
-                        <small>Drops raros</small>
+                        <small>Drops</small>
                         <strong className="text-teal-300">{dayDetail.drops.length}</strong>
                       </div>
                     )}

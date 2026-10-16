@@ -193,6 +193,10 @@ class ReportKpis:
     sales_change_status: str = "valid"
     farm_gold_change_status: str = "valid"
     pve_bags_change_status: str = "valid"
+    all_time_sales_minor: int = 0
+    all_time_pve_bags_earned: int = 0
+    all_time_daily_average_gold: Gold = field(default_factory=lambda: Gold(0))
+    all_time_active_days: int = 0
 
 
 @dataclass(frozen=True, slots=True)
