@@ -93,7 +93,7 @@ describe("App", () => {
     render(<App gateway={gateway} />);
 
     expect(await screen.findByText("Online")).toBeInTheDocument();
-    expect(screen.getByText("Versão 0.1.2")).toBeInTheDocument();
+    expect(screen.getByText("Versão 0.1.3")).toBeInTheDocument();
   });
 
   it("refreshes the Home when the app regains focus", async () => {

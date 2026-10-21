@@ -2,7 +2,7 @@
 ; Desenvolvido para compilação com Inno Setup 6 (ISCC.exe)
 
 #define MyAppName "GF Farmer"
-#define MyAppVersion "0.1.2"
+#define MyAppVersion "0.1.3"
 #define MyAppPublisher "STZ Labs"
 #define MyAppExeName "GF Farmer.exe"
 #define MyAppId "{{B8E17A63-84B2-4E9A-8F52-2FD5E48BE879}"
