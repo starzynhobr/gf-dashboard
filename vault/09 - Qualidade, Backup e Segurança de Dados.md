@@ -1,7 +1,7 @@
 ---
 tipo: qualidade
 status: ativo
-atualizado_em: 2026-09-30
+atualizado_em: 2026-10-21
 ---
 
 # Qualidade, Backup e Segurança de Dados
@@ -24,6 +24,8 @@ atualizado_em: 2026-09-30
 - Base determinística inspirada no mockup, com 2 contas e 5 personagens por conta, sem avatares obrigatórios.
 - Catálogo das 9 dungeons com totais conhecidos por rodada e ciclo de cinco.
 - Sessões de Torre individual e com 2–3 participantes, custo único e drops relevantes.
+- Configuração da Torre com catálogo preenchido/vazio e preços desconhecidos; salvar/reabrir sem sessão ou despesa, importação dos dados legados, custo editável com snapshots preservados e reenvio idempotente.
+- Upgrade `009` → `010` da Torre com dados existentes, repetição, falha/rollback e backup verificável; smoke de configuração no build React dentro do QWebEngine usando somente banco temporário.
 - Histórico de cotações do Saco PvE para provar que estimativa atual muda sem alterar vendas passadas.
 - Layout com Desempenho mensal ativado/desativado, módulo desconhecido e módulo novo recebendo defaults.
 - Base grande com anos de sessões/movimentos.

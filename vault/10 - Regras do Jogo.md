@@ -1,7 +1,7 @@
 ---
 tipo: regras-do-jogo
 status: ativo
-atualizado_em: 2026-08-26
+atualizado_em: 2026-10-21
 ---
 
 # Regras do Jogo
@@ -54,11 +54,12 @@ Fonte visual fornecida: print fornecido pelo proprietário (não incluído no re
 |---|---|---|
 | Natureza | Confirmada | Sessão de farm separada das dungeons e do checklist diário |
 | Frequência pessoal | Confirmada | Ocasional; não necessariamente diária |
-| Abertura | Confirmada | Torre da guild, 25.000 gold fixos por sessão |
+| Abertura | Confirmada | Torre da guild; padrão de 25.000 gold, configurável pelo usuário desde ADR-066; cada sessão preserva o custo vigente no registro |
 | Participantes | Confirmada | Todos os membros elegíveis podem entrar; sessão normalmente individual, às vezes com 2–3 personagens para funções diferentes |
 | Quantidade pessoal | Confirmada | Podem existir várias sessões; o app não presume 10 personagens nem uma sessão diária |
 | Objetivo | Confirmada | Chegar ao piso 30 e observar drops de valor para venda |
 | Registro principal | Confirmada | Concluída/não concluída + drops relevantes |
+| Configuração | Confirmada | Guilda, personagens padrão e catálogo de itens/valores são referências persistidas; configurar não gera sessão, drops ou despesa |
 
 ### Regras exibidas no jogo
 
@@ -89,7 +90,7 @@ As regras de participação podem aparecer como informação/aviso. O MVP não d
 | Valor dos Sacos PvE | Confirmada | 1.000 gold por saco atualmente; cada alteração cria histórico de cotação |
 | Atualização do dashboard | Confirmada | Estimativa atual muda quando o preço de mercado configurado muda |
 | Histórico realizado | Confirmada | Vendas e valores observados preservam snapshots e não mudam retroativamente |
-| Torre | Confirmada | Custo de 25.000 por sessão fica separado; drops entram quando registrados/avaliados |
+| Torre | Confirmada | Custo configurado por sessão fica separado; catálogo é referência e só drops efetivamente registrados entram nos fatos |
 | Visão bruta/líquida | Desconhecida | Definir apresentação final |
 
 ## Política de cálculo
@@ -108,4 +109,4 @@ As regras de participação podem aparecer como informação/aviso. O MVP não d
 - [ ] Definir se a seleção varia globalmente, por conta ou por personagem.
 - [ ] Confirmar a linha cortada do print sobre reset das oportunidades da Torre.
 - [x] Informar o preço inicial do Saco PvE: 1.000 gold.
-- [ ] Definir quais drops relevantes da Torre entram no catálogo.
+- [x] Catálogo de itens relevantes da Torre escolhido pelo usuário na configuração, com preços editáveis (ADR-066).

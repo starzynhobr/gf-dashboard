@@ -1,4 +1,4 @@
-import type { AppGateway, CharacterDayResult, DashboardLayoutResult, DashboardModuleKey, ManagementOverviewResult, PingResult, TodayActivityResult, TodayCharactersResult, TodayResult, TowerRegistrationInput } from "./AppGateway";
+import type { AppGateway, CharacterDayResult, DashboardLayoutResult, DashboardModuleKey, ManagementOverviewResult, PingResult, TodayActivityResult, TodayCharactersResult, TodayResult, TowerRegistrationInput, TowerConfiguration, TowerConfigurationInput } from "./AppGateway";
 
 const dungeonNames = [
   "Palácio de Proteção do Selo", "Câmara Secreta do Ritual das Trevas", "Destruidor do Vazio",
@@ -26,6 +26,26 @@ const previewCharacters: TodayCharactersResult = {
 };
 
 export class PreviewGateway implements AppGateway {
+  private towerConfiguration: TowerConfiguration = {
+    guildName: "Guilda de exemplo",
+    entryCostGold: 25_000,
+    participantIds: ["preview-character-1"],
+    items: [{ itemId: "preview-tower-item", itemName: "Pedra rara", estimatedUnitValue: 1500 }],
+  };
+
+  getTowerConfiguration(): Promise<TowerConfiguration> {
+    return Promise.resolve(structuredClone(this.towerConfiguration));
+  }
+
+  saveTowerConfiguration(input: TowerConfigurationInput): Promise<TowerConfiguration> {
+    this.towerConfiguration = {
+      guildName: input.guildName,
+      entryCostGold: input.entryCostGold,
+      participantIds: [...input.participantIds],
+      items: input.items.map((item, index) => ({ ...item, itemId: `preview-tower-item-${index}` })),
+    };
+    return this.getTowerConfiguration();
+  }
   private visibility: DashboardLayoutResult["visibility"] = { "daily-summary": true, "recent-drops": true, "monthly-performance": true };
   private routine: import("./AppGateway").WorkRoutineResult | null = null;
   ping(): Promise<PingResult> {
@@ -152,7 +172,7 @@ export class PreviewGateway implements AppGateway {
   }
 
   registerCompletedTower(input: TowerRegistrationInput): Promise<{ sessionId: string; participantCount: number; dropCount: number; entryCostGold: number }> {
-    return Promise.resolve({ sessionId: "preview-tower", participantCount: input.participantIds.length, dropCount: input.drops.length, entryCostGold: 25_000 });
+    return Promise.resolve({ sessionId: "preview-tower", participantCount: input.participantIds.length, dropCount: input.drops.length, entryCostGold: this.towerConfiguration.entryCostGold });
   }
 
   getDashboardLayout(): Promise<DashboardLayoutResult> {

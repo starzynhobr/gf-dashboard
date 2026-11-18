@@ -20,7 +20,7 @@ from gf_dashboard.domain.entities import (
     TowerSessionDetails,
     Workspace,
 )
-from gf_dashboard.domain.value_objects import EntityId, WorkspaceId
+from gf_dashboard.domain.value_objects import EntityId, Gold, WorkspaceId
 
 
 class Clock(Protocol):
@@ -119,6 +119,25 @@ class ActivityCompletionRepository(Protocol):
 
 
 class TowerSessionRepository(Protocol):
+    def current_entry_cost(self, workspace_id: WorkspaceId) -> Gold: ...
+
+    def registration_request(
+        self, workspace_id: WorkspaceId, idempotency_key: str
+    ) -> tuple[str, EntityId] | None: ...
+
+    def save_registration_request(
+        self,
+        workspace_id: WorkspaceId,
+        idempotency_key: str,
+        fingerprint: str,
+        session_id: EntityId,
+        created_at: datetime,
+    ) -> None: ...
+
+    def list_drops(
+        self, workspace_id: WorkspaceId, session_id: EntityId
+    ) -> tuple[FarmSessionItem, ...]: ...
+
     def save(
         self,
         session: FarmSession,

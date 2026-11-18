@@ -23,6 +23,7 @@ tipo: kanban
 
 ## Concluído
 
+- [x] CFG-005 — Configurar Torre e Itens da Torre com custo editável; migration/recuperação, 80 testes Python, 59 frontend e smoke QWebEngine com dados temporários validados
 - [x] REL-002 — Screenshots fictícios da v0.1.2 em assets/screenshots e na release, com ZIP para reutilização no site
 
 - [x] REL-001 — Pré-release v0.1.2 publicada com instalador e SHA-256; instalação, operação básica e persistência em perfil isolado validadas; evidência no Backlog
@@ -71,13 +72,14 @@ tipo: kanban
 - [x] UI-006 e UI-007 — Resumo, Torre, drops e gráfico mensal ligados a read models SQLite
 - [x] TST-002 — Baseline e QA visual 1680×941 aprovados em `design-qa.md`
 - [x] DOM-002, DOM-003 e DOM-007 — Atividades globais, vínculos, catálogo versionado e fechamento diário atômico
-- [x] DOM-006 e UI-009 — Torre independente com custo fixo, participantes opcionais e drops em uma transação
+- [x] DOM-006 e UI-009 — Torre independente com participantes opcionais e drops em uma transação; configuração/custo editável evoluem em CFG-005
 - [x] UI-008 — Resumo por personagem com seleção global e ciclos completos de cinco rodadas
 - [x] UI-010, UI-011 e CFG-003 — Registro/host de módulos, lazy loading, visibilidade persistida e restauração padrão
 - [x] MGT-002 — Seleção global da rotina de dungeons, herdada por novos personagens
 - [x] HIS-001 — Histórico de farm com filtros por período, conta e personagem, listagem de dias e detalhamento completo
 - [x] DOM-001 — Cadastro e edição de contas/personagens nos repositórios SQLite
-- [x] DOM-008 & UI-012 — Modal e botão de cotação do Saco PvE no Farm de Hoje ao lado de Registrar Torre com recálculo automático
+- [x] DOM-008 & UI-012 — Modal e botão de cotação do Saco PvE no Farm de Hoje com recálculo automático
+- [x] HIS-004, RPT-001 e CALC-001 — Histórico com filtros em uma linha, gráfico único em Relatórios e calculadora reais → gold
 
 %% kanban:settings
 ```

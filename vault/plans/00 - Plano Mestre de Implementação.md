@@ -2,7 +2,7 @@
 tipo: plano
 status: em-execucao
 ordem: linear
-atualizado_em: 2026-09-30
+atualizado_em: 2026-10-21
 ---
 
 # Plano Mestre de Implementação
@@ -14,6 +14,12 @@ Este é o caminho linear. Cada etapa termina com evidência e um portão. Não i
 ## Preparação para consulta pública do código
 
 PUB-001 é uma manutenção de privacidade e documentação, sem mudar a ordem dos slices nem os portões de release. PUB-002 registra a licença MIT escolhida e as fontes conhecidas dos assets. Publicar no GitHub e distribuir executáveis são ações separadas; REL-001 autoriza a release v0.1.2 após aceitação do instalador e do executável em perfil isolado. O histórico existente é preservado; referências pessoais anteriores e e-mail permanecem nos commits antigos.
+
+## Ajuste aprovado — Configuração da Torre (CFG-005)
+
+Concluído em 2026-10-21, conforme ADR-066: a ação principal passa a “Configurar Torre”, com guilda, personagens padrão, custo editável e catálogo de itens/valores; a coluna lateral apresenta referências, não drops recebidos. Registro de sessão permanece separado. Este slice evolui as etapas 4, 6 e 7 sem antecipar cloud ou outras etapas.
+
+Ordem executada: migration/contratos e importação dos dados existentes → configuração e catálogo na UI → registro com custo snapshot/idempotência → integração SQLite, React e smoke do build estático no QWebEngine. Portão validado: configuração persiste após reabrir sem criar fatos; sessões antigas preservam custos/drops e falhas de upgrade mantêm banco recuperável. Evidências em [[06 - Backlog]], aceite CFG-005. As pendências gerais das etapas e da auditoria npm permanecem separadas.
 
 ## Etapa 0 — Congelar requisitos e referências
 
@@ -100,7 +106,7 @@ PUB-001 é uma manutenção de privacidade e documentação, sem mudar a ordem d
 4. Implementar `complete_activity`, `skip_activity`, `reopen_activity` e salvamento atômico do resumo do personagem.
 5. Marcar uma dungeon como feita gera cinco conclusões, aplica as duas missões e soma cinco Sacos PvE na mesma transação.
 6. Implementar sessão opcional e registro de runs, duração, gold, sacos e notas.
-7. Implementar sessão independente da Torre com participantes opcionais, custo fixo de 25.000, conclusão e drops relevantes.
+7. Implementar sessão independente da Torre com participantes opcionais, custo vigente em snapshot, conclusão e drops relevantes; configuração separada em CFG-005, com padrão de 25.000 editável.
 8. Implementar catálogo e drops com preço snapshot.
 9. Implementar cotações do Saco PvE e read models que separam gold fixo, valor estimado, custos e realizado.
 10. Criar read models de cards, resumo, drops recentes e série mensal.
@@ -138,7 +144,7 @@ PUB-001 é uma manutenção de privacidade e documentação, sem mudar a ordem d
 1. Implementar query/read model Python do dia, DTOs da bridge e hooks/estado React correspondentes.
 2. Montar cards com gold fixo, Sacos PvE, estimativa pela cotação atual e custos separados; sem cotação, não inventar total.
 3. Criar lista virtualizada de personagens, ranking, marcador neutro, classe, progresso opcional, tempo e status.
-4. Criar coluna Resumo do dia e Últimos drops.
+4. Criar coluna Resumo do dia e Itens da Torre (evolução dos drops recentes em CFG-005).
 5. Implementar gráfico mensal acessível com fallback textual.
 6. Implementar estados sem perfil, sem personagens, sem atividade, carregando e erro recuperável.
 7. Rodar overlay/diff da tela completa com a fixture dourada.
@@ -159,8 +165,8 @@ PUB-001 é uma manutenção de privacidade e documentação, sem mudar a ordem d
 3. Preparar componente futuro de checkboxes/rodadas sem exigir seu uso no MVP.
 4. Capturar drops e notas no mesmo resumo; duração permanece detalhe opcional.
 5. Salvar todas as mudanças do resumo numa única transação.
-6. Criar ação própria “Nova sessão de Torre”, fora do checklist do personagem.
-7. Na Torre, registrar participantes opcionais, custo, conclusão, drops relevantes e observações.
+6. Criar ação própria “Configurar Torre”, fora do checklist do personagem, com guilda, participantes padrão, custo editável e catálogo de itens/valores.
+7. Manter o registro de uma sessão separado da configuração: participantes opcionais, custo vigente, conclusão e drops efetivamente obtidos com snapshots.
 8. Oferecer desfazer imediato e reabrir pelo histórico.
 9. Atualizar cards, linha, resumo e gráfico incrementalmente.
 10. Garantir idempotência contra clique duplo e reenvio.

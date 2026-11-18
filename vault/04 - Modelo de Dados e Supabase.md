@@ -1,7 +1,7 @@
 ---
 tipo: dados
 status: ativa-v1
-atualizado_em: 2026-08-27
+atualizado_em: 2026-10-21
 ---
 
 # Modelo de Dados e Supabase
@@ -43,6 +43,9 @@ Persistir **fatos e contexto histórico**, não somente o estado atual nem métr
 | `activity_windows` | Janela de disponibilidade | `rule_version_id`, `weekday`, `opens_at_local`, `duration_seconds`, `timezone` |
 | `items` | Catálogo de itens | `name`, `category`, `rarity`, `icon_ref`, `notes` |
 | `market_price_quotes` | Histórico do preço de mercado configurado | `item_id`, `unit_value_gold`, `observed_at`, `source`, `notes` |
+| `tower_configurations` | Configuração única da Torre por workspace | `guild_name`, `entry_cost_gold`, `created_at`, `updated_at` |
+| `tower_configuration_participants` | Personagens padrão, sem participação em sessão | `configuration_id`, `character_id`, `sort_order` |
+| `tower_configuration_items` | Associação ordenada dos itens relevantes e valor de referência opcional | `configuration_id`, `item_id`, `estimated_unit_value_gold`, `sort_order` |
 | `gold_exchange_quotes` | Cotação gold → moeda real | `gold_amount`, `amount_minor`, `currency`, `observed_at`, `source`, `notes` |
 
 ### Operação e fatos
@@ -66,6 +69,8 @@ Persistir **fatos e contexto histórico**, não somente o estado atual nem métr
 | `devices` | Identificar origem de mudanças | `name`, `platform`, `app_version`, `last_seen_at` |
 | `settings` | Preferências tipadas e versionadas | `scope`, `key`, `value_json`, `schema_version` |
 | `schema_migrations` | Histórico das migrations locais | `version`, `name`, `checksum`, `applied_at`, `app_version` |
+| `tower_configuration_requests` | Replay idempotente da configuração | `idempotency_key`, `payload_hash`, `response_json`, `created_at` |
+| `tower_registration_requests` | Replay idempotente de registro da Torre | `idempotency_key`, `payload_hash`, `farm_session_id`, `created_at` |
 | `audit_log` | Alterações sensíveis e correções | `entity_type`, `entity_id`, `action`, `before_json`, `after_json`, `occurred_at` |
 | `dashboard_layouts` | Layout salvo do dashboard | `name`, `is_default`, `layout_version`, `created_at`, `updated_at` |
 | `dashboard_layout_items` | Estado de cada módulo | `layout_id`, `module_key`, `enabled`, `sort_order`, `region`, `column_span`, `row_span`, `settings_json` |
@@ -81,6 +86,7 @@ Persistir **fatos e contexto histórico**, não somente o estado atual nem métr
 - `003_activity_reward_pve_bags.sql` adiciona o snapshot de Sacos PvE por missão, necessário para persistir a regra confirmada de uma unidade por rodada.
 - `004_currency_rates_and_sale_enhancements.sql` introduz cotações monetárias e snapshots de valor original/conversão das vendas.
 - `005_sales_integrity.sql` adiciona descrição independente do comprador, origem da cotação, moeda convertida e chave de idempotência por workspace.
+- `010_tower_configuration.sql` adiciona configuração, participantes, catálogo e deduplicação de gravações da Torre. Reconstrói somente `tower_session_details`, preservando suas linhas e substituindo custo fixo por inteiro não negativo até o limite seguro do contrato JavaScript.
 - O runner registra versão, nome, checksum, instante UTC e versão do aplicativo em `schema_migrations`.
 - Antes de aplicar migrations pendentes a um banco existente, ele cria cópia consistente via backup SQLite, valida `quick_check` e registra metadata com checksum. A restauração preserva a cópia atual como arquivo de recuperação.
 
@@ -94,7 +100,7 @@ Persistir **fatos e contexto histórico**, não somente o estado atual nem métr
 - Uma regra só participa de cálculo automático quando `rules_status = confirmed`; regras desconhecidas não produzem gold/sacos estimados.
 - `activity_completions` é único por `(daily_activity_entry_id, sequence_no)` e guarda a regra/snapshot usado no cálculo.
 - Sessão de Torre não pertence a um personagem: participantes ficam na tabela de junção e podem ser adicionados apenas quando útil ao histórico.
-- Cada abertura da Torre gera exatamente um custo de 25.000 gold na sessão, independentemente de haver um, dois ou três personagens participantes.
+- Cada abertura da Torre gera exatamente um custo vigente na sessão, independentemente do número de participantes. O padrão inicial é 25.000 gold, editável na configuração; o snapshot histórico não muda ao editar o custo atual.
 - Torre registra conclusão e drops relevantes; piso/tentativa detalhados ficam fora do MVP.
 - Uma cotação de mercado nunca altera transações antigas. Estimativas usam a cotação mais recente; venda/movimento histórico guarda `unit_value_snapshot`.
 - FK sempre ativa; exclusão de catálogo com histórico usa `RESTRICT` ou soft delete, nunca cascade destrutivo.
@@ -122,7 +128,7 @@ O catálogo operacional dessas informações fica em [[10 - Regras do Jogo]].
 |---|---|---|
 | Dia vira à meia-noite local | Confirmada | Implementar desde a migration/caso de uso inicial |
 | Torre vai do piso 1 ao 30 | Confirmada | O MVP registra apenas conclusão; regra permanece versionada |
-| Torre custa 25.000 gold para abrir | Confirmada | Um custo por `tower_session_details` |
+| Torre tem custo inicial de 25.000 gold, editável | Confirmada em ADR-066 | Um custo vigente por sessão em `tower_session_details.entry_cost_gold_snapshot`; configuração não gera despesa |
 | Torre disponível todos os dias 20:00–22:00 | Confirmada pelo print | Janela versionada e aviso informativo |
 | Registro da Torre 19:30–20:00 | Confirmada pelo print | Janela informativa; fechamento de roster após 20 minutos |
 | Torre é separada do personagem diário | Confirmada | `farm_sessions` + participantes opcionais, sem `character_activities` |
@@ -131,6 +137,14 @@ O catálogo operacional dessas informações fica em [[10 - Regras do Jogo]].
 | Gold das duas missões varia por dungeon | Confirmada | Catálogo em [[11 - Catálogo de Dungeons]] e snapshot por conclusão |
 
 Ao marcar uma dungeon inteira como feita, o caso de uso gera cinco `activity_completions` na mesma transação, aplica as duas missões da versão vigente e registra cinco Sacos PvE. A seleção de quais dungeons entram na rotina continua configurável.
+
+## Configuração da Torre (CFG-005)
+
+As seleções da Torre são normalizadas e pertencem ao workspace. O catálogo reutiliza `items`; suas mudanças de preço podem criar `market_price_quotes`, enquanto `tower_configuration_items` guarda o valor opcional atualmente apresentado. Remover ou trocar o nome de um item na configuração não exclui nem renomeia itens usados em fatos anteriores.
+
+Antes da primeira configuração salva, guilda/participantes da última sessão e itens com seus últimos valores conhecidos nas sessões de Torre são importados automaticamente para a apresentação inicial. Salvar uma configuração vazia é uma escolha persistida e impede nova importação dos itens removidos. Apenas drops históricos de Torre participam dessa importação.
+
+`tower.getConfiguration` e `tower.saveConfiguration` usam DTOs próprios; configuração não altera `farm_sessions`, `farm_session_items`, `inventory_movements` ou `transactions`. Registro separado de sessão usa custo vigente e guarda snapshots. Requests idempotentes são únicos por workspace/chave; reenvio retorna o resultado original e payload diferente com a mesma chave é conflito.
 
 ## Estimativa e preço do Saco PvE
 

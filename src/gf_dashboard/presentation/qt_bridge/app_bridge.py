@@ -19,6 +19,11 @@ from gf_dashboard.application.services import (
     WorkspaceService,
 )
 from gf_dashboard.application.tower import TowerDropInput, TowerSessionService
+from gf_dashboard.application.tower_configuration import (
+    SaveTowerConfiguration,
+    TowerConfigurationService,
+    TowerItemSetting,
+)
 from gf_dashboard.domain.errors import ConflictError, DomainError, NotFoundError, ValidationError
 from gf_dashboard.domain.value_objects import EntityId, Gold, WorkspaceId
 from gf_dashboard.infrastructure.autostart import WindowsAutostartService
@@ -28,6 +33,10 @@ from gf_dashboard.infrastructure.in_memory import SystemClock, UUIDGenerator
 from gf_dashboard.infrastructure.persistence import SqliteDatabase
 from gf_dashboard.infrastructure.sales_ledger import SqliteSaleLedger
 from gf_dashboard.infrastructure.sqlite_repositories import SqliteUnitOfWork
+from gf_dashboard.infrastructure.tower_configuration import (
+    SqliteTowerConfigurationStore,
+    configuration_to_dto,
+)
 
 
 class AppBridge(QObject):
@@ -341,6 +350,48 @@ class AppBridge(QObject):
                     self._required_bool(payload, "enabled"),
                 )
                 return self._success(request_id, {"updated": True})
+            if method in {"tower.getConfiguration", "tower.saveConfiguration"}:
+                tower_configuration = TowerConfigurationService(
+                    SqliteTowerConfigurationStore(self._required_database())
+                )
+                workspace_id = self._default_workspace_id()
+                if method == "tower.getConfiguration":
+                    configuration = tower_configuration.get(workspace_id)
+                else:
+                    guild = payload.get("guildName", "")
+                    if not isinstance(guild, str):
+                        raise ValueError("Nome da guilda deve ser um texto")
+                    participants = payload.get("participantIds")
+                    if not isinstance(participants, list) or not all(
+                        isinstance(value, str) for value in participants
+                    ):
+                        raise ValueError("Personagens devem ser uma lista de UUIDs")
+                    raw_items = payload.get("items")
+                    if not isinstance(raw_items, list):
+                        raise ValueError("Itens relevantes devem ser uma lista")
+                    settings: list[TowerItemSetting] = []
+                    for raw_item in raw_items:
+                        if not isinstance(raw_item, dict):
+                            raise ValueError("Cada item relevante deve ser um objeto")
+                        value = raw_item.get("estimatedUnitValue")
+                        if value is not None and (
+                            isinstance(value, bool) or not isinstance(value, int)
+                        ):
+                            raise ValueError("Valor do item deve ser inteiro ou desconhecido")
+                        settings.append(
+                            TowerItemSetting(self._required_string(raw_item, "itemName"), value)
+                        )
+                    configuration = tower_configuration.save(
+                        SaveTowerConfiguration(
+                            workspace_id,
+                            UUID(self._required_string(payload, "idempotencyKey")),
+                            guild,
+                            self._required_int(payload, "entryCostGold"),
+                            tuple(EntityId(UUID(value)) for value in participants),
+                            tuple(settings),
+                        )
+                    )
+                return self._success(request_id, configuration_to_dto(configuration))
             if method == "tower.registerCompleted":
                 raw_participants = payload.get("participantIds", [])
                 if not isinstance(raw_participants, list) or not all(
@@ -371,6 +422,9 @@ class AppBridge(QObject):
                 guild_name = payload.get("guildName")
                 if guild_name is not None and not isinstance(guild_name, str):
                     raise ValueError("guildName must be a string")
+                registration_key = payload.get("idempotencyKey")
+                if registration_key is not None and not isinstance(registration_key, str):
+                    raise ValueError("Chave de idempotência deve ser um UUID válido")
                 tower_result = TowerSessionService(
                     cast(TowerUnitOfWork, SqliteUnitOfWork(self._required_database())),
                     UUIDGenerator(),
@@ -381,6 +435,7 @@ class AppBridge(QObject):
                     tuple(EntityId(UUID(value)) for value in raw_participants),
                     guild_name.strip() or None if guild_name is not None else None,
                     tuple(drops),
+                    UUID(registration_key) if registration_key is not None else None,
                 )
                 return self._success(
                     request_id,
@@ -388,7 +443,7 @@ class AppBridge(QObject):
                         "sessionId": str(tower_result.session.id),
                         "participantCount": len(tower_result.participants),
                         "dropCount": len(tower_result.drops),
-                        "entryCostGold": 25_000,
+                        "entryCostGold": tower_result.entry_cost.amount,
                     },
                 )
             if method == "dashboard.layout":

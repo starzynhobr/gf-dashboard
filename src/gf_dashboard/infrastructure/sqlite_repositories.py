@@ -483,6 +483,67 @@ class SqliteTowerSessionRepository(TowerSessionRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
 
+    def current_entry_cost(self, workspace_id: WorkspaceId) -> Gold:
+        row = self._connection.execute(
+            "SELECT entry_cost_gold FROM tower_configurations WHERE workspace_id = ?",
+            (str(workspace_id),),
+        ).fetchone()
+        return Gold(row["entry_cost_gold"] if row else 25_000)
+
+    def registration_request(
+        self, workspace_id: WorkspaceId, idempotency_key: str
+    ) -> tuple[str, EntityId] | None:
+        row = self._connection.execute(
+            "SELECT payload_hash, farm_session_id FROM tower_registration_requests "
+            "WHERE workspace_id = ? AND idempotency_key = ?",
+            (str(workspace_id), idempotency_key),
+        ).fetchone()
+        return (row["payload_hash"], _id(row["farm_session_id"])) if row else None
+
+    def save_registration_request(
+        self,
+        workspace_id: WorkspaceId,
+        idempotency_key: str,
+        fingerprint: str,
+        session_id: EntityId,
+        created_at: datetime,
+    ) -> None:
+        self._connection.execute(
+            "INSERT INTO tower_registration_requests (id, workspace_id, idempotency_key, "
+            "payload_hash, farm_session_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                str(uuid4()),
+                str(workspace_id),
+                idempotency_key,
+                fingerprint,
+                str(session_id),
+                created_at.isoformat(),
+            ),
+        )
+
+    def list_drops(
+        self, workspace_id: WorkspaceId, session_id: EntityId
+    ) -> tuple[FarmSessionItem, ...]:
+        rows = self._connection.execute(
+            "SELECT * FROM farm_session_items WHERE workspace_id = ? AND farm_session_id = ? "
+            "AND deleted_at IS NULL ORDER BY rowid",
+            (str(workspace_id), str(session_id)),
+        ).fetchall()
+        return tuple(
+            FarmSessionItem(
+                _id(row["id"]),
+                workspace_id,
+                session_id,
+                _id(row["item_id"]),
+                row["quantity"],
+                _required_timestamp(row["obtained_at"]),
+                Gold(row["estimated_unit_value_at_drop"])
+                if row["estimated_unit_value_at_drop"] is not None
+                else None,
+            )
+            for row in rows
+        )
+
     def save(
         self,
         session: FarmSession,

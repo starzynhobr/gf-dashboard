@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import packageInfo from "../../package.json";
 import brandMark from "../assets/gf-farmer-mark.png";
-import type { AppGateway, CharacterDayResult, DashboardLayoutResult, DashboardModuleKey, ExpenseRegistrationInput, ManagementOverviewResult, TodayActivityResult, TodayCharactersResult, TodayResult, TowerRegistrationInput, WorkRoutineResult } from "../gateway/AppGateway";
+import type { AppGateway, CharacterDayResult, DashboardLayoutResult, DashboardModuleKey, ExpenseRegistrationInput, ManagementOverviewResult, TodayActivityResult, TodayCharactersResult, TodayResult, TowerRegistrationInput, TowerConfiguration, TowerConfigurationInput, WorkRoutineResult } from "../gateway/AppGateway";
 import { CharacterDayDialog } from "./CharacterDayDialog";
 import { DashboardModuleHost } from "./DashboardModules";
 import { EditRegistrationDialog, type RegistrationDraft } from "./EditRegistrationDialog";
@@ -14,6 +14,7 @@ import { ReportsPage } from "./ReportsPage";
 import { SaleDialog, type SaleInitialData } from "./SaleDialog";
 import { SettingsPage } from "./SettingsPage";
 import { TowerDialog } from "./TowerDialog";
+import { TowerConfigurationDialog } from "./TowerConfigurationDialog";
 import { VipDialog } from "./VipDialog";
 import { ExpenseDialog } from "./ExpenseDialog";
 import { GoldCalculatorDialog } from "./GoldCalculatorDialog";
@@ -99,12 +100,20 @@ export function App({ gateway }: { gateway: AppGateway }) {
   const [towerOpen, setTowerOpen] = useState(false);
   const [towerSaving, setTowerSaving] = useState(false);
   const [towerError, setTowerError] = useState<string | null>(null);
+  const [towerConfigurationOpen, setTowerConfigurationOpen] = useState(false);
+  const [towerConfiguration, setTowerConfiguration] = useState<TowerConfiguration | null>(null);
+  const [towerConfigurationLoading, setTowerConfigurationLoading] = useState(true);
+  const [towerConfigurationError, setTowerConfigurationError] = useState<string | null>(null);
+  const [towerNotice, setTowerNotice] = useState<string | null>(null);
+  const towerRequest = useRef(0);
+  const towerRegistrationBusy = useRef(false);
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [priceSaving, setPriceSaving] = useState(false);
   const [priceError, setPriceError] = useState<string | null>(null);
   const [saleModalOpen, setSaleModalOpen] = useState(false);
   const [saleInitialData, setSaleInitialData] = useState<SaleInitialData | null>(null);
   const [layout, setLayout] = useState<DashboardLayoutResult>(defaultLayout);
+  const [layoutReady, setLayoutReady] = useState(false);
   const [layoutBusy, setLayoutBusy] = useState(false);
   const [layoutError, setLayoutError] = useState<string | null>(null);
   const [editingRegistration, setEditingRegistration] = useState<RegistrationDraft | null>(null);
@@ -172,6 +181,36 @@ export function App({ gateway }: { gateway: AppGateway }) {
     finally { if (!options?.silent) setManagementLoading(false); }
   }, [gateway]);
 
+  const loadTowerConfiguration = useCallback(async () => {
+    const request = ++towerRequest.current;
+    setTowerConfigurationLoading(true);
+    setTowerConfigurationError(null);
+    try {
+      const next = await gateway.getTowerConfiguration();
+      if (request === towerRequest.current) setTowerConfiguration(next);
+    } catch (error: unknown) {
+      if (request === towerRequest.current) setTowerConfigurationError(error instanceof Error ? error.message : "Não foi possível carregar a configuração da Torre.");
+    } finally {
+      if (request === towerRequest.current) setTowerConfigurationLoading(false);
+    }
+  }, [gateway]);
+
+  const towerCatalogEnabled = bridgeState === "ready" && today?.state === "ready" && layoutReady && page === "today" && layout.visibility["recent-drops"];
+  useEffect(() => {
+    if (!towerCatalogEnabled) return;
+    const requests = towerRequest;
+    const request = ++requests.current;
+    gateway.getTowerConfiguration().then((next) => {
+      if (request !== requests.current) return;
+      setTowerConfiguration(next); setTowerConfigurationError(null); setTowerConfigurationLoading(false);
+    }).catch((error: unknown) => {
+      if (request !== requests.current) return;
+      setTowerConfigurationError(error instanceof Error ? error.message : "Não foi possível carregar a configuração da Torre.");
+      setTowerConfigurationLoading(false);
+    });
+    return () => { requests.current++; };
+  }, [towerCatalogEnabled, gateway]);
+
   useEffect(() => {
     let active = true;
     gateway.ping().then(async () => {
@@ -180,6 +219,7 @@ export function App({ gateway }: { gateway: AppGateway }) {
       try {
         await loadDashboard();
         try { setLayout(await gateway.getDashboardLayout()); } catch { /* workspace may not exist yet */ }
+        finally { if (active) setLayoutReady(true); }
         try { syncRoutine((await gateway.getWorkRoutine()).routine); } catch { /* workspace may not exist yet */ }
         try { setAutostart((await gateway.getAutostart()).enabled); } catch { /* ignore */ }
       } catch (error: unknown) {
@@ -392,10 +432,30 @@ export function App({ gateway }: { gateway: AppGateway }) {
   }
 
   async function registerTower(input: TowerRegistrationInput) {
+    if (towerRegistrationBusy.current) return;
+    towerRegistrationBusy.current = true;
     setTowerSaving(true); setTowerError(null);
-    try { await gateway.registerCompletedTower(input); setTowerOpen(false); await loadDashboard(); }
-    catch (error: unknown) { setTowerError(error instanceof Error ? error.message : "Não foi possível registrar a Torre"); }
-    finally { setTowerSaving(false); }
+    try {
+      await gateway.registerCompletedTower(input);
+      setTowerOpen(false); setTowerConfigurationOpen(false);
+      setTowerNotice("Sessão da Torre registrada.");
+      try { await loadDashboard(); }
+      catch { setTodayError("Sessão registrada. Não foi possível atualizar o dashboard; atualize a tela para conferir."); }
+    } catch (error: unknown) { setTowerError(error instanceof Error ? error.message : "Não foi possível registrar a Torre"); }
+    finally { towerRegistrationBusy.current = false; setTowerSaving(false); }
+  }
+
+  function openTowerConfiguration() {
+    setTowerConfigurationOpen(true); setTowerNotice(null);
+    void loadTowerConfiguration();
+  }
+
+  async function saveTowerConfiguration(input: TowerConfigurationInput) {
+    towerRequest.current++;
+    const next = await gateway.saveTowerConfiguration(input);
+    setTowerConfiguration(next);
+    setTowerConfigurationError(null); setTowerConfigurationLoading(false);
+    return next;
   }
 
   async function savePveBagPrice(unitValueGold: number) {
@@ -591,17 +651,15 @@ export function App({ gateway }: { gateway: AppGateway }) {
               className="secondary-button tower-action"
               type="button"
               disabled={today?.state !== "ready"}
-              onClick={() => {
-                setTowerError(null);
-                setTowerOpen(true);
-              }}
+              onClick={openTowerConfiguration}
             >
               <ShieldChevron size={18} weight="duotone" />
-              Registrar Torre
+              Configurar Torre
             </button>
           </div>
         </div>
         {todayError && <div className="error-banner" role="alert">{todayError}</div>}
+        {towerNotice && <p className="tower-success" role="status">{towerNotice}</p>}
         {today?.state === "empty" && <Panel className="onboarding"><div><strong>Configure seu espaço de farm</strong><span>O catálogo das nove dungeons será criado automaticamente.</span></div><input aria-label="Nome do workspace" value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} /><button disabled={creatingWorkspace || !workspaceName.trim()} onClick={() => void createWorkspace()}>{creatingWorkspace ? "Criando..." : "Começar"}</button></Panel>}
 
         {showCompletionPrompt && (
@@ -666,13 +724,14 @@ export function App({ gateway }: { gateway: AppGateway }) {
             }) : bridgeState === "connecting" || dayLoading ? <div className="table-empty"><UsersThree size={30} weight="duotone" /><strong>Carregando dados...</strong><span>Conectando ao banco local.</span></div> : <div className="table-empty"><UsersThree size={30} weight="duotone" /><strong>Nenhum personagem cadastrado</strong><span>Cadastre contas e personagens para iniciar o farm.</span><button className="primary-button empty-action" onClick={openManagement}><UserPlus size={18} />Cadastrar personagens</button></div>}
           </div></Panel>
 
-          <DashboardModuleHost visibility={layout.visibility} activity={activity} runsCompleted={runsCompleted} completedCharacters={totals.completedCharacters} characterTotal={characterRows.length} towerCompleted={towerCompleted} towerTotal={towerTotal} gold={gold} monthlyData={monthlyData} />
+          <DashboardModuleHost visibility={layout.visibility} activity={activity} runsCompleted={runsCompleted} completedCharacters={totals.completedCharacters} characterTotal={characterRows.length} towerCompleted={towerCompleted} towerTotal={towerTotal} gold={gold} monthlyData={monthlyData} towerConfiguration={towerConfiguration} towerLoading={towerConfigurationLoading && today?.state === "ready"} towerError={towerConfigurationError} onRetryTower={() => void loadTowerConfiguration()} />
         </div>
         <footer className="dashboard-footer"><Sparkle size={16} weight="duotone" />Dados atualizados pelo banco local.</footer>
         </> : page === "management" ? <ManagementPage overview={management} loading={managementLoading} busy={managementBusy} error={managementError} onCreateAccount={createAccount} onCreateCharacter={createCharacter} onEdit={setEditingRegistration} onToggleDungeon={toggleDungeon} /> : page === "reports" ? <ReportsPage gateway={gateway} onOpenHistory={openHistory} onOpenManagement={openManagement} /> : page === "history" ? <HistoryPage gateway={gateway} management={management} /> : <SettingsPage layout={layout} busy={layoutBusy} error={layoutError} targetMinutes={targetRoutineMinutes} autostart={autostart} autostartBusy={autostartBusy} onToggle={setModuleVisible} onReset={resetLayout} onSaveTargetMinutes={updateTargetRoutineMinutes} onToggleAutostart={toggleAutostart} />}
       </div>
       {characterDay && <CharacterDayDialog day={characterDay} saving={daySaving} error={dayError} onClose={() => setCharacterDay(null)} onSave={saveCharacterDay} />}
-      {towerOpen && <TowerDialog characters={characterRows} saving={towerSaving} error={towerError} onClose={() => setTowerOpen(false)} onSave={registerTower} />}
+      {towerConfigurationOpen && !towerOpen && <TowerConfigurationDialog configuration={towerConfiguration} characters={characterRows} loading={towerConfigurationLoading} error={towerConfigurationError} onRetry={() => void loadTowerConfiguration()} onClose={() => { towerRequest.current++; setTowerConfigurationLoading(false); setTowerConfigurationOpen(false); }} onSave={saveTowerConfiguration} onRegister={() => { setTowerError(null); setTowerOpen(true); }} />}
+      {towerOpen && towerConfiguration && <TowerDialog configuration={towerConfiguration} characters={characterRows} activityDate={today?.activityDate} saving={towerSaving} error={towerError} onClose={() => setTowerOpen(false)} onSave={registerTower} />}
       {priceModalOpen && <PveBagPriceDialog currentPrice={today?.state === "ready" ? (today.pveBagUnitValueGold ?? null) : null} saving={priceSaving} error={priceError} onClose={() => setPriceModalOpen(false)} onSave={savePveBagPrice} />}
       {saleModalOpen && <SaleDialog gateway={gateway} isOpen={saleModalOpen} initialData={saleInitialData} onClose={() => { setSaleModalOpen(false); setSaleInitialData(null); }} onSuccess={() => { void loadDashboard(); }} />}
       {editingRegistration && <EditRegistrationDialog draft={editingRegistration} saving={managementBusy} error={managementError} onClose={() => setEditingRegistration(null)} onSave={saveRegistrationEdit} />}

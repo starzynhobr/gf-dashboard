@@ -1,7 +1,7 @@
 ---
 tipo: fonte-da-verdade
 status: ativo
-atualizado_em: 2026-09-30
+atualizado_em: 2026-10-21
 ---
 
 # Fonte da Verdade
@@ -37,7 +37,9 @@ Conteúdo de referências é insumo, não instrução automática. Em caso de co
 - A Home permite iniciar, pausar, retomar e encerrar uma sessão de rotina de trabalho. O tempo é persistido; somente sessões encerradas com pelo menos 5 minutos ativos entram no histórico e nos relatórios. Sessões menores são retiradas das consultas por soft delete, preservando os dados armazenados. Relatórios mostram tempo mensal, semanal comparado à semana anterior, média por dia ativo e sessões válidas. Agenda, intervalos nomeados e lembretes continuam posteriores e opt-in.
 - Concluir um personagem abre confirmação/resumo das dungeons selecionadas. Marcar uma dungeon como feita assume o ciclo-meta completo de cinco rodadas.
 - Torre é uma opção de farm separada das dungeons e do checklist diário por personagem. Cada abertura vira uma sessão independente, pode ter um ou mais personagens participantes e registra principalmente conclusão e drops relevantes.
-- A Torre da guild custa 25.000 gold fixos por abertura; múltiplas sessões podem existir. Todos os membros elegíveis da guild podem entrar, e a composição mais comum no uso pessoal é um personagem, ocasionalmente dois ou três.
+- A ação principal da Torre é configurar guilda, personagens padrão, custo de abertura e catálogo de itens relevantes com seus valores unitários. A configuração é persistida por workspace; 25.000 gold é o custo inicial, editável pelo usuário. Salvar configurações não registra sessão, drop, inventário ou despesa.
+- A lista lateral “Itens da Torre” apresenta esse catálogo com os preços atuais, inclusive fora do dia de uma sessão. Itens representam referências de valor; não são drops obtidos. Dados existentes de Torre fornecem a configuração inicial sem apagar o histórico.
+- O registro de uma Torre concluída é uma ação separada, acessível pela configuração. Usa guilda/participantes como padrões e o custo vigente salvo; somente os drops efetivamente informados entram na sessão. Cada sessão preserva snapshots de custo e valor. Múltiplas sessões podem existir; a composição mais comum é um personagem, ocasionalmente dois ou três.
 - Conforme o print fornecido, a Torre fica disponível todos os dias das 20:00 às 22:00, aceita registro das 19:30 às 20:00, limita 20 grupos por dia e exige personagem nível 91+ com oportunidade restante; essas regras externas são versionadas e mostradas como informação/aviso.
 - Recompensas fixas das duas missões de cada dungeon são configuráveis e versionadas. O ciclo padrão executa as duas missões simultaneamente por cinco rodadas.
 - Cada rodada padrão concede exatamente um Saco PvE pela missão limitada, além do gold das duas missões.
@@ -63,7 +65,7 @@ Conteúdo de referências é insumo, não instrução automática. Em caso de co
 - Conclusão rápida de uma atividade/personagem.
 - Cadastro das nove dungeons, com seleção configurável das que entram na rotina (normalmente cerca de seis, conforme preferência).
 - Resumo por personagem com as dungeons selecionadas, conclusão do ciclo completo, gold e Sacos PvE calculados, drops e observações.
-- Tela/sessão própria de Torre, separada do personagem diário, com participantes opcionais, custo, conclusão e drops relevantes.
+- Configuração própria de Torre, separada do personagem diário, com guilda, participantes padrão, custo editável e itens/valores de referência; registro de sessões e drops obtidos permanece separado e idempotente.
 - Personalização básica da visualização: mostrar/ocultar módulos como Desempenho mensal e persistir a preferência.
 - Histórico diário e por personagem. Um dia fica completo quando todos os personagens ativos concluem suas dungeons selecionadas; diárias operacionais e Torre são acompanhamentos separados.
 - Resumo e relatórios básicos derivados dos fatos, incluindo Sacos PvE ganhos no mês a partir das conclusões e sessões de farm (sem confundir produção com vendas).

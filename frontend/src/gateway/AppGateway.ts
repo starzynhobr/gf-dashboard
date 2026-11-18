@@ -98,9 +98,26 @@ export interface CharacterDayResult {
 }
 
 export interface TowerRegistrationInput {
+  idempotencyKey?: string;
+  activityDate?: string;
   guildName: string;
   participantIds: string[];
   drops: Array<{ itemName: string; quantity: number; estimatedUnitValue: number | null }>;
+}
+
+export interface TowerConfiguration {
+  guildName: string;
+  entryCostGold: number;
+  participantIds: string[];
+  items: Array<{ itemId: string; itemName: string; estimatedUnitValue: number | null }>;
+}
+
+export interface TowerConfigurationInput {
+  guildName: string;
+  entryCostGold: number;
+  participantIds: string[];
+  items: Array<{ itemName: string; estimatedUnitValue: number | null }>;
+  idempotencyKey: string;
 }
 
 export type DashboardModuleKey = "daily-summary" | "recent-drops" | "monthly-performance";
@@ -386,6 +403,8 @@ export interface AppGateway {
   updateCharacter(characterId: string, name: string, className: string, level: number): Promise<{ id: string; name: string }>;
   setDungeonActive(activityId: string, enabled: boolean): Promise<{ updated: boolean }>;
   registerCompletedTower(input: TowerRegistrationInput): Promise<{ sessionId: string; participantCount: number; dropCount: number; entryCostGold: number }>;
+  getTowerConfiguration(): Promise<TowerConfiguration>;
+  saveTowerConfiguration(input: TowerConfigurationInput): Promise<TowerConfiguration>;
   getDashboardLayout(): Promise<DashboardLayoutResult>;
   setDashboardModuleVisible(moduleKey: DashboardModuleKey, enabled: boolean): Promise<DashboardLayoutResult>;
   resetDashboardLayout(): Promise<DashboardLayoutResult>;

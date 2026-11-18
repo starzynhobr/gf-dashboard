@@ -1,4 +1,4 @@
-import { type AppGateway, type CharacterDayResult, type DashboardLayoutResult, type DashboardModuleKey, GatewayError, type ManagementOverviewResult, type PingResult, type TodayActivityResult, type TodayCharactersResult, type TodayResult, type TowerRegistrationInput } from "./AppGateway";
+import { type AppGateway, type CharacterDayResult, type DashboardLayoutResult, type DashboardModuleKey, GatewayError, type ManagementOverviewResult, type PingResult, type TodayActivityResult, type TodayCharactersResult, type TodayResult, type TowerRegistrationInput, type TowerConfiguration, type TowerConfigurationInput } from "./AppGateway";
 
 interface BridgeResponse<T> {
   version: number;
@@ -72,6 +72,14 @@ export class QtGateway implements AppGateway {
 
   registerCompletedTower(input: TowerRegistrationInput): Promise<{ sessionId: string; participantCount: number; dropCount: number; entryCostGold: number }> {
     return this.invoke("tower.registerCompleted", { ...input });
+  }
+
+  getTowerConfiguration(): Promise<TowerConfiguration> {
+    return this.invoke("tower.getConfiguration", {});
+  }
+
+  saveTowerConfiguration(input: TowerConfigurationInput): Promise<TowerConfiguration> {
+    return this.invoke("tower.saveConfiguration", { ...input });
   }
 
   getDashboardLayout(): Promise<DashboardLayoutResult> {

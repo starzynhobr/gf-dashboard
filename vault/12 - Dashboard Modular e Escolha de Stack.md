@@ -1,7 +1,7 @@
 ---
 tipo: arquitetura-de-interface
 status: aceito
-atualizado_em: 2026-08-26
+atualizado_em: 2026-10-21
 ---
 
 # Dashboard Modular e Escolha de Stack
@@ -42,6 +42,8 @@ Exemplos de chaves:
 - `today.recent_drops`;
 - `today.monthly_performance`;
 - `today.tower_quick_action`.
+
+Na implementação atual, o módulo de chave persistida `recent-drops` passa a exibir “Itens da Torre” (CFG-005/ADR-066). Seu provider lê o catálogo de referência da configuração, com nome e valor; não representa produção. A consulta do catálogo fica inativa quando o módulo está oculto ou fora da Home, exceto ao abrir explicitamente a configuração. A chave é preservada para manter as preferências já salvas.
 
 ### Evolução posterior
 

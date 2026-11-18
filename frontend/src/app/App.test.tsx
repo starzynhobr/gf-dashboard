@@ -1,7 +1,7 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AppGateway } from "../gateway/AppGateway";
+import type { AppGateway, TowerConfiguration } from "../gateway/AppGateway";
 import { App } from "./App";
 import { millisecondsUntilNextLocalMidnight } from "./dailyRefresh";
 
@@ -24,6 +24,8 @@ function createGateway(overrides: Partial<AppGateway> = {}): AppGateway {
     updateAccount: async (accountId, name) => ({ id: accountId, name }),
     updateCharacter: async (characterId, name) => ({ id: characterId, name }),
     setDungeonActive: async () => ({ updated: true }),
+    getTowerConfiguration: async () => ({ guildName: "", entryCostGold: 25_000, participantIds: [], items: [] }),
+    saveTowerConfiguration: async (input) => ({ ...input, items: input.items.map((item, index) => ({ ...item, itemId: `item-${index}` })) }),
     registerCompletedTower: async (input) => ({ sessionId: "tower-1", participantCount: input.participantIds.length, dropCount: input.drops.length, entryCostGold: 25_000 }),
     getDashboardLayout: async () => ({ schemaVersion: 1, visibility: { "daily-summary": true, "recent-drops": true, "monthly-performance": true } }),
     setDashboardModuleVisible: async (moduleKey, enabled) => ({ schemaVersion: 1, visibility: { "daily-summary": true, "recent-drops": true, "monthly-performance": true, [moduleKey]: enabled } }),
@@ -162,8 +164,10 @@ describe("App", () => {
     }
   });
 
-  it("renders recent drops and actual monthly gold from the activity read model", async () => {
+  it("renders the Tower catalog separately from actual activity and monthly gold", async () => {
     const gateway = createGateway({
+      getToday: async () => ({ state: "ready", activityDate: "2026-08-26", selectedDungeons: 9, estimatedGold: 7000, estimatedPveBags: 5, estimatedPveBagMarketValue: 5000 }),
+      getTowerConfiguration: async () => ({ guildName: "Guilda", entryCostGold: 25_000, participantIds: [], items: [{ itemId: "item-1", itemName: "Pedra da Torre", estimatedUnitValue: 120_000 }] }),
       getTodayActivity: async () => ({
         state: "ready", runsCompleted: 5, towerCompleted: 1, towerTotal: 1,
         recentDrops: [{ itemName: "Drop raro", quantity: 2, obtainedAt: "2026-08-26T14:32:00" }],
@@ -171,7 +175,11 @@ describe("App", () => {
       }),
     });
     render(<App gateway={gateway} />);
-    expect(await screen.findByText("2× Drop raro")).toBeInTheDocument();
+    expect(await screen.findByText("Itens da Torre")).toBeInTheDocument();
+    expect(await screen.findByText("Pedra da Torre")).toBeInTheDocument();
+    expect(screen.getByText(/120\.000/)).toBeInTheDocument();
+    expect(screen.queryByText("2× Drop raro")).not.toBeInTheDocument();
+    expect(screen.getByText("Itens da Torre").closest("section")?.querySelector("time")).toBeNull();
     expect(screen.getByText("13.250")).toBeInTheDocument();
     expect(screen.getByText("Gold + Sacos PvE")).toBeInTheDocument();
     expect(screen.getAllByText("1 / 1")).toHaveLength(2);
@@ -277,16 +285,164 @@ describe("App", () => {
     const gateway = createGateway({
       getToday: async () => ({ state: "ready", activityDate: "2026-08-26", selectedDungeons: 9, estimatedGold: 7000, estimatedPveBags: 5, estimatedPveBagMarketValue: 5000 }),
       getTodayCharacters: async () => ({ state: "ready", characters: [{ id: "character-1", name: "Star01", className: "Ranger", accountName: "Conta", completedDungeons: 0, selectedDungeons: 9 }] }),
+      getTowerConfiguration: async () => ({ guildName: "Guilda padrão", entryCostGold: 30_000, participantIds: ["character-1"], items: [{ itemId: "item-1", itemName: "Drop raro", estimatedUnitValue: 125_000 }] }),
       registerCompletedTower,
     });
     render(<App gateway={gateway} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Registrar Torre" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: /Star01/ }));
-    fireEvent.change(screen.getByPlaceholderText("Ex.: Pedra rara"), { target: { value: "Drop raro" } });
-    fireEvent.click(screen.getByRole("button", { name: "Registrar sessão" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Configurar Torre" }));
+    await screen.findByLabelText("Guilda");
+    const configurationDialog = screen.getByRole("dialog");
+    fireEvent.click(within(configurationDialog).getByRole("button", { name: "Registrar sessão" }));
+    const dialog = await screen.findByRole("dialog", { name: /Registrar Torre/ });
+    expect(within(dialog).getByRole("checkbox", { name: /Star01/ })).toBeChecked();
+    expect(within(dialog).getByLabelText("Quantidade de Drop raro")).toHaveValue("0");
+    fireEvent.change(within(dialog).getByLabelText("Quantidade de Drop raro"), { target: { value: "2" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirmar sessão" }));
 
-    await waitFor(() => expect(registerCompletedTower).toHaveBeenCalledWith(expect.objectContaining({ participantIds: ["character-1"], drops: [expect.objectContaining({ itemName: "Drop raro" })] })));
+    await waitFor(() => expect(registerCompletedTower).toHaveBeenCalledWith(expect.objectContaining({ guildName: "Guilda padrão", participantIds: ["character-1"], drops: [{ itemName: "Drop raro", quantity: 2, estimatedUnitValue: 125_000 }], idempotencyKey: expect.any(String) })));
+  });
+
+  it("persists Tower defaults and reopens them without creating a session or refreshing facts", async () => {
+    let stored: TowerConfiguration = { guildName: "", entryCostGold: 25_000, participantIds: [], items: [] };
+    const getTowerConfiguration = vi.fn(async () => structuredClone(stored));
+    const saveTowerConfiguration = vi.fn<AppGateway["saveTowerConfiguration"]>(async (input) => {
+      stored = { guildName: input.guildName, entryCostGold: input.entryCostGold, participantIds: [...input.participantIds], items: input.items.map((item, index) => ({ ...item, itemId: `item-${index}` })) };
+      return structuredClone(stored);
+    });
+    const getToday = vi.fn<AppGateway["getToday"]>(async () => ({ state: "ready", activityDate: "2026-08-26", selectedDungeons: 9, estimatedGold: 7000, estimatedPveBags: 5, estimatedPveBagMarketValue: 5000 }));
+    const getTodayActivity = vi.fn<AppGateway["getTodayActivity"]>(async () => ({ state: "ready", runsCompleted: 0, towerCompleted: 0, towerTotal: 0, recentDrops: [], monthlyGold: [], monthlyGoldTotal: 0 }));
+    const registerCompletedTower = vi.fn<AppGateway["registerCompletedTower"]>();
+    render(<App gateway={createGateway({
+      getToday, getTodayActivity, getTowerConfiguration, saveTowerConfiguration, registerCompletedTower,
+      getTodayCharacters: async () => ({ state: "ready", characters: [{ id: "character-1", name: "Star01", className: "Ranger", accountName: "Conta", completedDungeons: 0, selectedDungeons: 9 }] }),
+    })} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Configurar Torre" }));
+    const guild = await screen.findByLabelText("Guilda");
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(guild, { target: { value: "Guardiões" } });
+    fireEvent.change(within(dialog).getByLabelText("Custo da abertura (gold)"), { target: { value: "35000" } });
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: /Star01/ }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Adicionar item" }));
+    fireEvent.change(within(dialog).getByLabelText("Nome do item 1"), { target: { value: "Pedra da Torre" } });
+    fireEvent.change(within(dialog).getByLabelText("Valor estimado do item 1 (gold)"), { target: { value: "120000" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar configuração" }));
+
+    expect(await within(dialog).findByText("Configuração salva.")).toBeInTheDocument();
+    expect(saveTowerConfiguration).toHaveBeenCalledWith({ guildName: "Guardiões", entryCostGold: 35_000, participantIds: ["character-1"], items: [{ itemName: "Pedra da Torre", estimatedUnitValue: 120_000 }], idempotencyKey: expect.any(String) });
+    expect(registerCompletedTower).not.toHaveBeenCalled();
+    expect(getToday).toHaveBeenCalledTimes(1);
+    expect(getTodayActivity).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("dialog")).toBe(dialog);
+
+    fireEvent.click(within(dialog).getAllByRole("button", { name: "Fechar" })[0]);
+    expect(await screen.findByText("Pedra da Torre")).toBeInTheDocument();
+    const readsBeforeReopen = getTowerConfiguration.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Configurar Torre" }));
+    await waitFor(() => expect(getTowerConfiguration.mock.calls.length).toBeGreaterThan(readsBeforeReopen));
+    expect(await screen.findByDisplayValue("Guardiões")).toBeInTheDocument();
+    const reopened = screen.getByRole("dialog");
+    expect(within(reopened).getByLabelText("Custo da abertura (gold)")).toHaveValue("35000");
+    expect(within(reopened).getByRole("checkbox", { name: /Star01/ })).toBeChecked();
+    expect(within(reopened).getByLabelText("Nome do item 1")).toHaveValue("Pedra da Torre");
+    expect(within(reopened).getByLabelText("Valor estimado do item 1 (gold)")).toHaveValue("120000");
+  });
+
+  it("does not query a hidden Tower catalog but loads it when configuration is opened", async () => {
+    let resolveConfiguration!: (configuration: TowerConfiguration) => void;
+    const getTowerConfiguration = vi.fn(() => new Promise<TowerConfiguration>((resolve) => { resolveConfiguration = resolve; }));
+    render(<App gateway={createGateway({
+      getToday: async () => ({ state: "ready", activityDate: "2026-08-26", selectedDungeons: 9, estimatedGold: 7000, estimatedPveBags: 5, estimatedPveBagMarketValue: 5000 }),
+      getDashboardLayout: async () => ({ schemaVersion: 1, visibility: { "daily-summary": true, "recent-drops": false, "monthly-performance": true } }),
+      getTowerConfiguration,
+    })} />);
+    await screen.findByRole("button", { name: "Configurar Torre" });
+    await act(async () => {});
+    expect(screen.queryByText("Itens da Torre")).not.toBeInTheDocument();
+    expect(getTowerConfiguration).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Personagens" }));
+    await screen.findByText("Contas e personagens");
+    expect(getTowerConfiguration).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Hoje" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Configurar Torre" }));
+
+    expect(await screen.findByText("Carregando configuração da Torre...")).toBeInTheDocument();
+    expect(getTowerConfiguration).toHaveBeenCalledTimes(1);
+    await act(async () => resolveConfiguration({ guildName: "Persistida", entryCostGold: 0, participantIds: [], items: [] }));
+    expect(await screen.findByLabelText("Guilda")).toHaveValue("Persistida");
+    expect(screen.getByLabelText("Custo da abertura (gold)")).toHaveValue("0");
+  });
+
+  it("ignores an old Tower configuration response after the loading dialog is closed and reopened", async () => {
+    const pendingReads: Array<(configuration: TowerConfiguration) => void> = [];
+    const getTowerConfiguration = vi.fn(() => new Promise<TowerConfiguration>((resolve) => { pendingReads.push(resolve); }));
+    render(<App gateway={createGateway({
+      getToday: async () => ({ state: "ready", activityDate: "2026-08-26", selectedDungeons: 9, estimatedGold: 7000, estimatedPveBags: 5, estimatedPveBagMarketValue: 5000 }),
+      getDashboardLayout: async () => ({ schemaVersion: 1, visibility: { "daily-summary": true, "recent-drops": false, "monthly-performance": true } }),
+      getTowerConfiguration,
+    })} />);
+    await screen.findByRole("button", { name: "Configurar Torre" });
+    await act(async () => {});
+    expect(getTowerConfiguration).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Configurar Torre" }));
+    const firstDialog = await screen.findByRole("dialog");
+    expect(within(firstDialog).getByText("Carregando configuração da Torre...")).toBeInTheDocument();
+    fireEvent.click(within(firstDialog).getByRole("button", { name: "Fechar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Configurar Torre" }));
+    expect(getTowerConfiguration).toHaveBeenCalledTimes(2);
+
+    await act(async () => pendingReads[1]({ guildName: "Guilda Nova", entryCostGold: 40_000, participantIds: [], items: [{ itemId: "new-item", itemName: "Item novo", estimatedUnitValue: null }] }));
+    expect(await screen.findByLabelText("Guilda")).toHaveValue("Guilda Nova");
+    await act(async () => pendingReads[0]({ guildName: "Guilda Antiga", entryCostGold: 25_000, participantIds: [], items: [{ itemId: "old-item", itemName: "Item antigo", estimatedUnitValue: null }] }));
+
+    expect(screen.getByLabelText("Guilda")).toHaveValue("Guilda Nova");
+    expect(screen.getByLabelText("Custo da abertura (gold)")).toHaveValue("40000");
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Registrar sessão" }));
+    expect(await screen.findByLabelText("Guilda da sessão")).toHaveValue("Guilda Nova");
+    expect(screen.getByLabelText("Quantidade de Item novo")).toHaveValue("0");
+    expect(screen.queryByLabelText("Quantidade de Item antigo")).not.toBeInTheDocument();
+  });
+
+  it("queries the active Tower catalog only on Home and reloads it when returning", async () => {
+    const getTowerConfiguration = vi.fn<AppGateway["getTowerConfiguration"]>(async () => ({ guildName: "", entryCostGold: 25_000, participantIds: [], items: [{ itemId: "item-1", itemName: "Pedra da Torre", estimatedUnitValue: null }] }));
+    const getToday = vi.fn<AppGateway["getToday"]>(async () => ({ state: "ready", activityDate: "2026-08-26", selectedDungeons: 9, estimatedGold: 7000, estimatedPveBags: 5, estimatedPveBagMarketValue: 5000 }));
+    render(<App gateway={createGateway({ getToday, getTowerConfiguration })} />);
+    await screen.findByText("Pedra da Torre");
+    expect(getTowerConfiguration).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Personagens" }));
+    await screen.findByText("Contas e personagens");
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(getToday).toHaveBeenCalledTimes(2));
+    expect(getTowerConfiguration).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Hoje" }));
+
+    await waitFor(() => expect(getTowerConfiguration).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("Itens da Torre")).toBeInTheDocument();
+  });
+
+  it("recovers a failed Tower configuration read without losing the dialog", async () => {
+    const getTowerConfiguration = vi.fn<AppGateway["getTowerConfiguration"]>()
+      .mockRejectedValueOnce(new Error("Não foi possível ler a Torre"))
+      .mockResolvedValue({ guildName: "Recuperada", entryCostGold: 25_000, participantIds: [], items: [] });
+    render(<App gateway={createGateway({
+      getToday: async () => ({ state: "ready", activityDate: "2026-08-26", selectedDungeons: 9, estimatedGold: 7000, estimatedPveBags: 5, estimatedPveBagMarketValue: 5000 }),
+      getDashboardLayout: async () => ({ schemaVersion: 1, visibility: { "daily-summary": true, "recent-drops": false, "monthly-performance": true } }),
+      getTowerConfiguration,
+    })} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Configurar Torre" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText("Não foi possível ler a Torre")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Tentar novamente" }));
+
+    expect(await screen.findByLabelText("Guilda")).toHaveValue("Recuperada");
+    expect(getTowerConfiguration).toHaveBeenCalledTimes(2);
   });
 
   it("persists module visibility from Settings", async () => {

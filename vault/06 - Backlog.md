@@ -1,7 +1,7 @@
 ---
 tipo: backlog
 status: ativo
-atualizado_em: 2026-09-30
+atualizado_em: 2026-10-21
 ---
 
 # Backlog
@@ -59,6 +59,9 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 - [x] **MGT-002** Página de dungeons/atividades, seleção da rotina e metas padrão.
 - [x] **HIS-001** Histórico por data, conta, personagem e atividade.
 - [x] **HIS-003** Alinhar resumo, status “Parcial” e filtro “Incompletos” às dungeons ativas e selecionadas exibidas no detalhe; documentar o critério de dia completo.
+- [x] **HIS-004** Histórico enxuto: filtros (período, tipo de dia, conta, personagem) em uma linha e Runs/Sacos PvE exibidos juntos (um número quando iguais).
+- [x] **RPT-001** Relatórios: “Evolução do mês” e “Comparativo de farm” unidos em um painel; comparação segue mês vs mês completo e hover Mês/Desde o início mantido.
+- [x] **CALC-001** Calculadora: campo em reais que calcula o gold equivalente pela cotação de centavos/1.000 gold, além do sentido gold → reais.
 - [ ] **HIS-002** Edição auditável de sessões e lançamentos.
 - [ ] **INV-001** Catálogo de itens e ledger de inventário.
 - [x] **FIN-001** Vendas e ledger financeiro em gold/moeda.
@@ -80,6 +83,7 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 - [ ] **CFG-002** Caminho estável compartilhado entre execução manual e app instalado, com trava para testes.
 - [x] **CFG-003** Persistir layouts/módulos visíveis com versionamento das preferências.
 - [x] **CFG-004** Persistir meta mensal de gold por workspace/mês.
+- [x] **CFG-005** Configurar Torre por workspace: guilda, participantes padrão, custo editável e itens/valores de referência. “Itens da Torre” substitui “Últimos drops”; registro de sessão separado e idempotente, importação de referências e snapshots preservados. Evidência em “Aceite CFG-005”.
 - [ ] **REM-001** Rotina de trabalho opt-in com horário/dias configuráveis e lembretes.
 - [ ] **GME-010** Modelar Fama dos Mercados como saldo estimado calibrável, catálogo de missões e consumo de dungeon após confirmação dos custos.
 - [x] **PKG-001** Spike PyInstaller + Inno Setup com Qt WebEngine, WebChannel e `frontend/dist`.
@@ -92,7 +96,7 @@ IDs são permanentes. A execução detalhada e linear está em [[plans/00 - Plan
 
 - [x] **GME-001** Confirmar dias, horário de abertura e duração da Torre.
 - [x] **GME-002** Confirmar requisitos/elegibilidade da Torre conforme print fornecido.
-- [x] **GME-003** Confirmar custo fixo de 25.000 gold por abertura da Torre.
+- [x] **GME-003** Confirmar custo inicial de 25.000 gold por abertura da Torre; custo fixo substituído por configuração editável em ADR-066/CFG-005.
 - [x] **GME-004** Confirmar ciclo-meta de 5 rodadas por dungeon.
 - [x] **GME-005** Confirmar gold e 1 Saco PvE por rodada/dungeon.
 - [x] **GME-006** Definir que marcar Dungeon feita assume todas as 5 rodadas.
@@ -147,3 +151,11 @@ Build v0.1.2: instalador de 146,57 MiB, SHA-256 `ac45854c75baa05c5f0ea0d90f47f46
 ## Evidência de REL-002 — 2026-09-30
 
 Três screenshots do executável v0.1.2: Hoje, Personagens e Relatórios, com duas contas/dez personagens e histórico inteiramente fictícios em perfil qttest separado. Originais JPEG 2560×1032 preservados sem recompressão em `assets/screenshots/v0.1.2/`, inspecionados visualmente. README inclui textos alternativos e contexto dos dados. Três JPGs e ZIP anexados à release, com previews Markdown nas notas; digests/tamanhos remotos conferidos e ZIP íntegro. Instalador e seu checksum preservados. Nenhuma mudança de código, schema ou build.
+
+## Aceite CFG-005 — 2026-10-21
+
+Configuração de Torre implementada com migration `010`, contratos aditivos e catálogo separado dos fatos. `uv run pytest`: 80 testes passaram; `npm --prefix frontend run test`: 59 testes passaram. `uv lock --check`, Ruff check/format, mypy, ESLint, typecheck e build Vite passaram. Integrações cobrem upgrade com sessões/participantes/drops existentes, backup, repetição, falha/restauração, isolamento por workspace, importação legada, lista vazia, idempotência e preservação dos snapshots de custo/nome/preço.
+
+O smoke `test_tower_configuration_round_trip_in_built_react` usa SQLite temporário e o build estático no QWebEngine real: salva guilda, custo 30.000 e Astúcia a 200.000; fecha/reabre a janela e verifica o catálogo sem sessão, drop ou despesa; depois registra uma sessão separada com duas unidades de Astúcia e confere os snapshots. Screenshots inspecionados em 1680×941, 1440×810 e 1280×720, além de zoom 125%/150% do QWebEngine; não é validação de DPI nativo do Windows. O teste gera as imagens em seu `tmp_path`, sem abrir o banco pessoal.
+
+Limites: instalador/release não foram gerados para este slice. O build continua com aviso de chunk acima de 500 kB; a auditoria npm das dependências existentes reportou quatro vulnerabilidades de severidade alta (`brace-expansion`, `source-map-js`, `undici`, `vite`), fora da mudança da Torre. As pendências anteriores de versão foram commitadas e enviadas separadamente em `7e866db` antes deste trabalho.

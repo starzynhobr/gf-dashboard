@@ -1,7 +1,7 @@
 ---
 tipo: decisoes
 status: ativo
-atualizado_em: 2026-09-30
+atualizado_em: 2026-10-21
 ---
 
 # Decisões
@@ -40,7 +40,7 @@ atualizado_em: 2026-09-30
 | ADR-022 | Aceita | Fixture real do MVP tem 2 contas e 5 personagens por conta | Os testes funcionais refletem os 10 personagens de uso real |
 | ADR-023 | Aceita | Desenvolvimento manual e app instalado podem compartilhar o banco estável | Testes permanecem isolados e builds incompatíveis devem recusar o schema |
 | ADR-024 | Aceita | Torre é sessão de farm independente das dungeons/checklist diário | Pode ocorrer ocasionalmente e envolver 1–3 personagens sem ser atribuída a todos |
-| ADR-025 | Aceita | Cada abertura da Torre da guild custa 25.000 gold fixos | O custo é lançado uma vez por sessão, independentemente do número de participantes |
+| ADR-025 | Substituída por ADR-066 | Cada abertura da Torre da guild custa 25.000 gold fixos | Regra anterior preservada; 25.000 passa a ser o padrão editável e sessões antigas mantêm seu snapshot |
 | ADR-026 | Aceita | Torre registra conclusão e drops relevantes | Piso/tentativas detalhadas não fazem parte do fluxo principal |
 | ADR-027 | Aceita | Existem 9 dungeons cadastradas e a rotina usa uma seleção configurável | A preferência comum de cerca de 6 não vira regra global |
 | ADR-028 | Aceita | Ciclo padrão executa duas missões simultâneas por 5 rodadas | Missão limitada dá gold + 1 saco; missão ilimitada dá somente gold |
@@ -84,10 +84,23 @@ atualizado_em: 2026-09-30
 
 | ADR-065 | Aceita | Release v0.1.2 autorizada com aceitação do instalador em perfil isolado | `--validation-profile UUID` usa QStandardPaths em modo de teste e nome de aplicação distinto, sem abrir o banco pessoal. Publicar instalador e checksum após aceitação; visibilidade do repositório permanece separada |
 
+| ADR-066 | Aceita | Torre tem configuração persistida por workspace, separada dos fatos de sessão | Guilda, participantes padrão, custo editável (inicial 25.000) e catálogo de itens/valores alimentam “Configurar Torre” e “Itens da Torre”. Configurar não cria produção ou despesa; sessões registram apenas o que ocorreu, com custo e preços em snapshots |
+
+## ADR-066 — Configuração e referências da Torre
+
+Pedido confirmado em 2026-10-21: substituir a ação principal “Registrar Torre” por “Configurar Torre” e apresentar as coisas relevantes da Torre com seus valores. O proprietário também confirmou que o custo da abertura deve ser editável.
+
+- Manter uma configuração por workspace; reutilizar o catálogo de itens e cotações existentes, sem renomear itens referenciados pelo histórico.
+- Importar guilda/participantes da última sessão e itens/últimos valores de sessões de Torre existentes. Uma lista vazia explicitamente salva não deve reimportar itens removidos.
+- Manter registro de sessão como intenção separada, com chave idempotente. Salvar configuração não cria sessão, drops, movimentos de inventário ou lançamentos financeiros.
+- Migration `010` adiciona a configuração e relaxa somente a restrição de custo fixo para inteiro não negativo. O runner cria e verifica backup antes do upgrade; sessões, vínculos e snapshots antigos permanecem intactos. Não editar migrations aplicadas nem permitir downgrade automático.
+- O módulo lateral conserva sua chave persistida `recent-drops`, passa a mostrar referências e preços e não consulta o catálogo quando está desativado.
+- Contrato aditivo: `tower.getConfiguration` e `tower.saveConfiguration`; `tower.registerCompleted` preserva compatibilidade e aceita chave idempotente. Clientes novos usam a chave em gravações.
+
 ## Questões abertas
 
 - A estimativa principal mostrará bruto previsível e líquido separadamente, descontando custos como a Torre?
-- Quais drops da Torre merecem cadastro/valor e quais serão apenas ignorados?
+- Quais itens acompanhar é uma escolha editável no catálogo da Torre; não exige lista fixa no código.
 - O app deve apenas informar a janela/requisitos da Torre ou emitir lembrete quando ela estiver disponível?
 - A linha parcialmente visível no print sobre reset das oportunidades da Torre precisa ser confirmada antes de automatizar esse contador.
 

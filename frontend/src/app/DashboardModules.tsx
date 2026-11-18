@@ -1,7 +1,7 @@
 import { ChartBar, Coins, CurrencyDollar, Package, ShieldChevron, Sword, Tote, UsersThree } from "@phosphor-icons/react";
 import { lazy, Suspense } from "react";
 
-import type { DashboardModuleKey, TodayActivityResult } from "../gateway/AppGateway";
+import type { DashboardModuleKey, TodayActivityResult, TowerConfiguration } from "../gateway/AppGateway";
 
 const MonthlyGoldChart = lazy(() => import("./MonthlyGoldChart"));
 const numberFormat = new Intl.NumberFormat("pt-BR");
@@ -24,6 +24,10 @@ export function DashboardModuleHost({
   towerTotal,
   gold,
   monthlyData,
+  towerConfiguration,
+  towerLoading,
+  towerError,
+  onRetryTower,
 }: {
   visibility: Record<DashboardModuleKey, boolean>;
   activity: TodayActivityResult | null;
@@ -34,6 +38,10 @@ export function DashboardModuleHost({
   towerTotal: number;
   gold: number;
   monthlyData: Array<{ day: number; gold: number; pveBags: number; bagValueGold: number; goldEquivalent: number }>;
+  towerConfiguration: TowerConfiguration | null;
+  towerLoading: boolean;
+  towerError: string | null;
+  onRetryTower: () => void;
 }) {
   const earnedGold = activity?.earnedGoldToday ?? gold;
   const pveBagsEarned = activity?.pveBagsEarnedToday ?? 0;
@@ -85,30 +93,24 @@ export function DashboardModuleHost({
       {visibility["recent-drops"] && (
         <Panel>
           <div className="panel-heading">
-            <h2>Últimos drops</h2>
+            <h2>Itens da Torre</h2>
           </div>
-          {activity?.recentDrops.length ? (
-            <div className="drops-list">
-              {activity.recentDrops.map((drop) => (
-                <p key={`${drop.itemName}-${drop.obtainedAt}`}>
+          {towerLoading ? <div className="module-empty" role="status">Carregando itens da Torre...</div> : towerError ? <div className="module-empty tower-catalog-error"><span role="alert">{towerError}</span><button className="secondary-button" type="button" onClick={onRetryTower}>Tentar novamente</button></div> : towerConfiguration?.items.length ? (
+            <div className="drops-list tower-catalog-list">
+              {towerConfiguration.items.map((item) => (
+                <p key={item.itemId}>
                   <Package size={17} weight="duotone" />
                   <span>
-                    {drop.quantity > 1 ? `${drop.quantity}× ` : ""}
-                    {drop.itemName}
+                    {item.itemName}
                   </span>
-                  <time>
-                    {new Date(drop.obtainedAt).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </time>
+                  <strong>{item.estimatedUnitValue === null ? "Sem valor" : `${numberFormat.format(item.estimatedUnitValue)} gold`}</strong>
                 </p>
               ))}
             </div>
           ) : (
             <div className="module-empty">
               <Package size={25} weight="duotone" />
-              <span>Nenhum drop registrado hoje</span>
+              <span>Nenhum item da Torre configurado</span>
             </div>
           )}
         </Panel>

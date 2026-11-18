@@ -1,7 +1,7 @@
 ---
 tipo: design
 status: referencia
-atualizado_em: 2026-08-26
+atualizado_em: 2026-10-21
 ---
 
 # Design e Interface
@@ -20,7 +20,7 @@ Referência secundária do resumo: print fornecido pelo proprietário (não incl
 ┌ Sidebar 250 ┐┌ Header: data, ações, perfil e janela ────────────────┐
 │ Marca       │├ Quatro cards de indicadores ─────────────────────────┤
 │ Hoje        │├ Painel principal de personagens ─┬ Resumo do dia ────┤
-│ Personagens ││                                  ├ Últimos drops ────┤
+│ Personagens ││                                  ├ Itens da Torre ───┤
 │ Relatórios  ││                                  ├ Desempenho mensal │
 │ Histórico   ││                                  │                   │
 │ Config.     ││                                  │                   │
@@ -96,7 +96,7 @@ Os valores abaixo são ponto de partida, não amostras finais. A fase de fidelid
 - “Gold estimado” fica oculto, marcado como não configurado ou substituído por um fato confirmado enquanto a fórmula estiver dormente.
 - A linha abre um resumo inspirado na segunda referência: nome do personagem; dungeons selecionadas; gold fixo e Sacos PvE calculados; drops/observações opcionais; Salvar.
 - Marcar uma dungeon como feita assume cinco rodadas. Um futuro detalhamento por checkbox pode existir, mas não faz parte do fluxo normal.
-- Torre não aparece no checklist do personagem. Uma ação própria “Nova sessão de Torre” abre custo fixo, participantes opcionais, conclusão e drops relevantes.
+- Torre não aparece no checklist do personagem. “Configurar Torre” abre guilda, personagens padrão, custo de abertura e itens/valores; o registro de uma sessão permanece acessível separadamente nesse fluxo.
 
 ## Fluxo do resumo de personagem
 
@@ -111,11 +111,12 @@ O painel deve manter a hierarquia e simplicidade do print fornecido, mas adotar 
 
 ## Fluxo da Torre
 
-1. Usuário escolhe “Nova sessão de Torre” quando decidir fazer esse farm.
-2. O formulário já apresenta custo de 25.000 gold e, como informação, janela/requisitos vigentes.
-3. Participantes são opcionais; normalmente um personagem, podendo selecionar dois ou três.
-4. Ao finalizar, registra apenas concluída/não concluída, drops relevantes e observações.
-5. O custo entra uma vez no ledger financeiro da sessão; drops entram no inventário/estimativa quando registrados.
+1. Usuário escolhe “Configurar Torre” para editar guilda, personagens padrão, custo de abertura (inicialmente 25.000 gold) e itens relevantes com preço unitário.
+2. O catálogo não pede quantidade obtida; permite adicionar/remover itens e deixar preço desconhecido. Valores em gold usam inteiros e apresentação pt-BR.
+3. “Salvar configuração” persiste somente essas referências. A Home mostra “Itens da Torre”, com nome e preço, sem horário ou aparência de drop recebido.
+4. A ação separada “Registrar sessão” usa a configuração salva como padrão; participantes continuam opcionais. Os itens não começam marcados como obtidos.
+5. Confirmar a sessão registra apenas drops efetivamente informados e o custo vigente uma vez; alterar configurações depois não muda o histórico.
+6. Carregamento, lista vazia, erro com nova tentativa, gravação e sucesso ficam explícitos; teclado/foco, janela estreita e escala precisam ser verificados.
 
 ## Estimativa de gold
 

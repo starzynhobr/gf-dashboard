@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass, replace
 from datetime import date
+from uuid import UUID
 
 from gf_dashboard.application.ports import Clock, IdGenerator, TowerUnitOfWork
 from gf_dashboard.domain.entities import (
@@ -12,7 +15,14 @@ from gf_dashboard.domain.entities import (
     TowerSessionDetails,
 )
 from gf_dashboard.domain.enums import SessionStatus, SessionType
-from gf_dashboard.domain.errors import NotFoundError, ValidationError
+from gf_dashboard.domain.errors import ConflictError, NotFoundError, ValidationError
+from gf_dashboard.domain.tower_configuration import (
+    MAX_SAFE_INTEGER,
+    MAX_TOWER_ITEMS,
+    MAX_TOWER_NAME_LENGTH,
+    MAX_TOWER_PARTICIPANTS,
+    validate_tower_gold,
+)
 from gf_dashboard.domain.value_objects import EntityId, Gold, WorkspaceId
 
 TOWER_ENTRY_COST = Gold(25_000)
@@ -38,6 +48,7 @@ class TowerRegistrationResult:
     session: FarmSession
     participants: tuple[FarmSessionParticipant, ...]
     drops: tuple[FarmSessionItem, ...]
+    entry_cost: Gold
 
 
 class TowerSessionService:
@@ -69,7 +80,11 @@ class TowerSessionService:
                 now,
             )
             details = TowerSessionDetails(
-                session.id, TOWER_ENTRY_COST, False, now, guild_name_snapshot=guild_name
+                session.id,
+                self._uow.tower_sessions.current_entry_cost(workspace_id),
+                False,
+                now,
+                guild_name_snapshot=guild_name,
             )
             participants = tuple(
                 FarmSessionParticipant(session.id, character_id, joined_at=now)
@@ -125,12 +140,70 @@ class TowerSessionService:
         participant_ids: tuple[EntityId, ...] = (),
         guild_name: str | None = None,
         drops: tuple[TowerDropInput, ...] = (),
+        idempotency_key: UUID | None = None,
     ) -> TowerRegistrationResult:
         """Persist a completed Tower run, participants and relevant drops atomically."""
         if len(participant_ids) != len(set(participant_ids)):
             raise ValidationError("Participantes da Torre não podem se repetir")
+        if len(participant_ids) > MAX_TOWER_PARTICIPANTS or len(drops) > MAX_TOWER_ITEMS:
+            raise ValidationError("A Torre aceita até 100 personagens e 100 drops")
+        guild_name = guild_name.strip() or None if guild_name is not None else None
+        if guild_name is not None and len(guild_name) > MAX_TOWER_NAME_LENGTH:
+            raise ValidationError("Nome da guilda deve ter até 120 caracteres")
+        for candidate in drops:
+            if (
+                not candidate.item_name.strip()
+                or len(candidate.item_name.strip()) > MAX_TOWER_NAME_LENGTH
+            ):
+                raise ValidationError("Nome do drop deve ter entre 1 e 120 caracteres")
+            if (
+                isinstance(candidate.quantity, bool)
+                or not isinstance(candidate.quantity, int)
+                or not 1 <= candidate.quantity <= MAX_SAFE_INTEGER
+            ):
+                raise ValidationError("Quantidade do drop deve ser um inteiro positivo seguro")
+            if candidate.estimated_unit_value is not None:
+                validate_tower_gold(candidate.estimated_unit_value.amount)
+        fingerprint = hashlib.sha256(
+            json.dumps(
+                [
+                    activity_date.isoformat(),
+                    guild_name,
+                    [str(value) for value in participant_ids],
+                    [
+                        [
+                            drop.item_name.strip(),
+                            drop.quantity,
+                            drop.estimated_unit_value.amount
+                            if drop.estimated_unit_value is not None
+                            else None,
+                        ]
+                        for drop in drops
+                    ],
+                ],
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
         now = self._clock.now()
         with self._uow:
+            if idempotency_key is not None:
+                prior = self._uow.tower_sessions.registration_request(
+                    workspace_id, str(idempotency_key)
+                )
+                if prior is not None:
+                    if prior[0] != fingerprint:
+                        raise ConflictError("Chave de idempotência já usada com outra sessão")
+                    existing = self._uow.tower_sessions.get(workspace_id, prior[1])
+                    if existing is None:
+                        raise NotFoundError("Sessão da Torre não encontrada")
+                    prior_session, prior_details, prior_participants = existing
+                    return TowerRegistrationResult(
+                        prior_session,
+                        prior_participants,
+                        self._uow.tower_sessions.list_drops(workspace_id, prior_session.id),
+                        prior_details.entry_cost,
+                    )
             for character_id in participant_ids:
                 if self._uow.characters.get(character_id, workspace_id) is None:
                     raise NotFoundError("Participante da Torre não encontrado no workspace")
@@ -147,7 +220,7 @@ class TowerSessionService:
             )
             details = TowerSessionDetails(
                 session.id,
-                TOWER_ENTRY_COST,
+                self._uow.tower_sessions.current_entry_cost(workspace_id),
                 True,
                 now,
                 completed_at=now,
@@ -182,4 +255,10 @@ class TowerSessionService:
                 self._uow.tower_sessions.add_drop(drop)
                 recorded_drops.append(drop)
 
-            return TowerRegistrationResult(session, participants, tuple(recorded_drops))
+            if idempotency_key is not None:
+                self._uow.tower_sessions.save_registration_request(
+                    workspace_id, str(idempotency_key), fingerprint, session.id, now
+                )
+            return TowerRegistrationResult(
+                session, participants, tuple(recorded_drops), details.entry_cost
+            )
