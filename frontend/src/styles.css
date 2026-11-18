@@ -346,7 +346,8 @@ input, select { font: inherit; }
 .history-top-header__title { display: grid; gap: 2px; }
 .history-top-header__title h1 { margin: 0; font-size: 20px; font-weight: 700; color: #f1f5f9; line-height: 1.15; }
 .history-top-header__title span { color: #8496a8; font-size: 12px; }
-.history-top-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.history-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 8px 12px; border: 1px solid rgba(151,178,204,.1); border-radius: 10px; background: rgba(255,255,255,.015); }
+.history-filter-bar .history-filter-selects { margin-left: auto; }
 .history-overview-bar { padding: 10px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
 .history-event-filters-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-left: 12px; border-left: 1px solid rgba(151,178,204,.14); }
 .history-filter-group { display: flex; align-items: center; gap: 8px; color: #9bb0c6; font-size: 12px; flex-wrap: wrap; }
@@ -535,6 +536,15 @@ input, select { font: inherit; }
 
 .comparative-body { display: flex; flex-direction: column; height: 100%; justify-content: space-between; }
 .comparative-highlight { margin-bottom: 2px; }
+.evolution-panel__body { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 20px; align-items: center; }
+.evolution-comparison { display: grid; gap: 12px; padding-left: 20px; border-left: 1px solid rgba(151,178,204,.12); }
+.comparison-bar { display: grid; gap: 5px; }
+.comparison-bar__label { display: flex; justify-content: space-between; font-size: 12px; color: #9bb0c6; }
+.comparison-bar__label strong { color: #edf3fb; }
+.comparison-bar__track { height: 8px; border-radius: 999px; background: rgba(255,255,255,.05); overflow: hidden; }
+.comparison-bar__fill { height: 100%; border-radius: inherit; background: #4a5568; }
+.comparison-bar__fill--current { background: #4f80ff; }
+@media (max-width: 900px) { .evolution-panel__body { grid-template-columns: 1fr; } .evolution-comparison { padding-left: 0; border-left: 0; } }
 
 .recent-movements-panel { min-height: 220px; }
 .recent-movements-list { display: grid; gap: 2px; overflow: auto; max-height: 215px; padding-right: 3px; }

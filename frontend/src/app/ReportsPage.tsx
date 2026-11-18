@@ -17,8 +17,8 @@ import {
   AreaChart,
   Bar,
   BarChart,
-  CartesianGrid,
   Cell,
+  CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -106,19 +106,13 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
     };
   }, [gateway]);
 
-  const barData = useMemo(() => {
+  const comparisonBars = useMemo(() => {
     if (reports.state !== "ready") return [];
+    const { previousMonthName, previousMonthGold, currentMonthName, currentMonthGold } = reports.monthlyComparison;
+    const max = Math.max(previousMonthGold, currentMonthGold, 1);
     return [
-      {
-        name: reports.monthlyComparison.previousMonthName,
-        gold: reports.monthlyComparison.previousMonthGold,
-        isCurrent: false,
-      },
-      {
-        name: reports.monthlyComparison.currentMonthName,
-        gold: reports.monthlyComparison.currentMonthGold,
-        isCurrent: true,
-      },
+      { key: "current", name: currentMonthName, gold: currentMonthGold, isCurrent: true, percent: Math.round((currentMonthGold / max) * 100) },
+      { key: "previous", name: previousMonthName, gold: previousMonthGold, isCurrent: false, percent: Math.round((previousMonthGold / max) * 100) },
     ];
   }, [reports]);
 
@@ -433,64 +427,50 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
         })()}
       </section>
 
-      {/* Row 1: Evolução do Mês + Comparativo Mensal */}
-      <section className="reports-grid-row reports-grid-row--charts">
-        {/* Evolução do mês */}
-        <div className="panel chart-panel chart-panel--main">
-          <div className="chart-heading">
-            <div>
-              <h2>Evolução do mês</h2>
-              <span className="chart-sub">Gold farmado por dia</span>
-            </div>
-            <div className="chart-selector">
-              <span>Gold por dia</span>
-            </div>
-          </div>
-          <div className="chart-container" style={{ width: "100%", height: 195 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyEvolution} margin={{ top: 10, right: 16, bottom: 0, left: -8 }}>
-                <defs>
-                  <linearGradient id="blueEvolGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#4f80ff" stopOpacity={0.45} />
-                    <stop offset="100%" stopColor="#4f80ff" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#8293a5", fontSize: 10 }} />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#8293a5", fontSize: 10 }}
-                  tickFormatter={formatCompactGold}
-                />
-                <Tooltip
-                  formatter={(value) => [`${numberFormat.format(Number(value))} gold`, "Farm"]}
-                  labelFormatter={(d) => `Dia ${d}`}
-                  contentStyle={{ background: "#0c2232", border: "1px solid #294054", borderRadius: 8, fontSize: 12, color: "#edf3fb" }} itemStyle={{ color: "#edf3fb" }} labelStyle={{ color: "#c7d8e8" }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="gold"
-                  stroke="#5d93ff"
-                  strokeWidth={2.5}
-                  fill="url(#blueEvolGrad)"
-                  dot={{ r: 3.5, fill: "#5d93ff", stroke: "#0b1523", strokeWidth: 1.5 }}
-                  activeDot={{ r: 5.5, fill: "#8ab4f8" }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+      {/* Row 1: Evolução do mês com comparativo mensal integrado */}
+      <section className="panel chart-panel evolution-panel">
+        <div className="chart-heading">
+          <div>
+            <h2>Evolução e comparativo</h2>
+            <span className="chart-sub">Gold farmado por dia no mês atual, comparado com o mês passado completo</span>
           </div>
         </div>
-
-        {/* Comparativo de farm */}
-        <div className="panel chart-panel chart-panel--side">
-          <div className="chart-heading">
-            <div>
-              <h2>Comparativo de farm</h2>
-              <span className="chart-sub">Mês atual até o dia indicado vs mês passado completo</span>
+        <div className="evolution-panel__body">
+            <div className="chart-container" style={{ width: "100%", height: 195 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dailyEvolution} margin={{ top: 10, right: 16, bottom: 0, left: -8 }}>
+                  <defs>
+                    <linearGradient id="blueEvolGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#4f80ff" stopOpacity={0.45} />
+                      <stop offset="100%" stopColor="#4f80ff" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: "#8293a5", fontSize: 10 }} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#8293a5", fontSize: 10 }}
+                    tickFormatter={formatCompactGold}
+                  />
+                  <Tooltip
+                    formatter={(value) => [`${numberFormat.format(Number(value))} gold`, "Farm"]}
+                    labelFormatter={(d) => `Dia ${d}`}
+                    contentStyle={{ background: "#0c2232", border: "1px solid #294054", borderRadius: 8, fontSize: 12, color: "#edf3fb" }} itemStyle={{ color: "#edf3fb" }} labelStyle={{ color: "#c7d8e8" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="gold"
+                    stroke="#5d93ff"
+                    strokeWidth={2.5}
+                    fill="url(#blueEvolGrad)"
+                    dot={{ r: 3.5, fill: "#5d93ff", stroke: "#0b1523", strokeWidth: 1.5 }}
+                    activeDot={{ r: 5.5, fill: "#8ab4f8" }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
-          </div>
-          <div className="comparative-body">
+          <aside className="evolution-comparison" aria-label="Comparativo de farm">
             <div className="comparative-highlight">
               {monthlyComparison.growthStatus === "no_baseline" ? (
                 <span className="text-slate-300 font-bold text-base">Sem base comparável</span>
@@ -502,34 +482,22 @@ export function ReportsPage({ gateway, onOpenHistory, onOpenManagement }: { gate
               <span className="text-xs text-slate-400 block">
                 {monthlyComparison.currentPeriodLabel || monthlyComparison.currentMonthName} vs {monthlyComparison.previousPeriodLabel || monthlyComparison.previousMonthName}
               </span>
-              <span className="text-xs text-slate-300 font-medium block mt-0.5">
-                {formatCompactGold(monthlyComparison.currentMonthGold)} vs {formatCompactGold(monthlyComparison.previousMonthGold)}
-              </span>
             </div>
-            <div className="chart-container" style={{ width: "100%", height: 130 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} margin={{ top: 10, right: 10, bottom: 0, left: -10 }}>
-                  <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.06)" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#8293a5", fontSize: 10 }} />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#8293a5", fontSize: 10 }}
-                    tickFormatter={formatCompactGold}
+            {comparisonBars.map((bar) => (
+              <div key={bar.key} className="comparison-bar">
+                <div className="comparison-bar__label">
+                  <span>{bar.name}</span>
+                  <strong>{formatCompactGold(bar.gold)}</strong>
+                </div>
+                <div className="comparison-bar__track">
+                  <div
+                    className={bar.isCurrent ? "comparison-bar__fill comparison-bar__fill--current" : "comparison-bar__fill"}
+                    style={{ width: `${bar.percent}%` }}
                   />
-                  <Tooltip
-                    formatter={(value) => [`${numberFormat.format(Number(value))} gold`, "Total"]}
-                    contentStyle={{ background: "#0c2232", border: "1px solid #294054", borderRadius: 8, fontSize: 12, color: "#edf3fb" }} itemStyle={{ color: "#edf3fb" }} labelStyle={{ color: "#c7d8e8" }}
-                  />
-                  <Bar dataKey="gold" radius={[4, 4, 0, 0]} maxBarSize={44}>
-                    {barData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.isCurrent ? "#4f80ff" : "#4a5568"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+                </div>
+              </div>
+            ))}
+          </aside>
         </div>
       </section>
 

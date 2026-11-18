@@ -528,7 +528,7 @@ describe("App", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Histórico" }));
     expect(await screen.findByText("Histórico de farm")).toBeInTheDocument();
-    expect(await screen.findByText("25 runs")).toBeInTheDocument();
+    expect(await screen.findByText("25 runs/sacos")).toBeInTheDocument();
     expect(await screen.findByText("Cristal Mágico")).toBeInTheDocument();
     expect(await screen.findByText("Todos os 1 personagens concluíram as atividades")).toBeInTheDocument();
 
@@ -637,7 +637,7 @@ describe("App", () => {
     // Period summary strip is rendered with correct aggregated stats
     expect(await screen.findByText("Dias registrados")).toBeInTheDocument();
     expect(screen.getByText("Dias registrados").nextElementSibling).toHaveTextContent("2 dias");
-    expect(screen.getByText("Runs totais").nextElementSibling).toHaveTextContent("40");
+    expect(screen.getAllByText("Runs / sacos")[0].nextElementSibling).toHaveTextContent("40");
     expect(screen.getByText("Gold acumulado").nextElementSibling).toHaveTextContent("56k gold");
     expect(screen.getByText("Tempo em rotina").nextElementSibling).toHaveTextContent("6h 39min");
 
@@ -993,7 +993,7 @@ describe("App", () => {
     expect(screen.getAllByText(/Mês passado \(completo\):/)).toHaveLength(3);
     expect(screen.getAllByText("18.420.000").length).toBeGreaterThan(0);
     expect(screen.getByText("+18% vs mês passado")).toBeInTheDocument();
-    expect(screen.getByText("Comparativo de farm")).toBeInTheDocument();
+    expect(screen.getByText("Evolução e comparativo")).toBeInTheDocument();
     expect(screen.getByText("1 - 27 de agosto vs Julho de 2026 (mês completo)")).toBeInTheDocument();
     expect(screen.getByText("Últimas movimentações")).toBeInTheDocument();
     expect(screen.getByText("Dimensão Distorcida")).toBeInTheDocument();
@@ -1226,6 +1226,16 @@ describe("App", () => {
     expect(screen.getByLabelText("Gold para calcular")).toHaveValue("1.000.000");
     expect(screen.getByText(/80,00/)).toBeInTheDocument();
     expect(screen.getByText(/Equivale a 1\.000 sacos PvE/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Valor em reais")).toHaveValue("80,00");
+
+    // Reverse: typing reais shows gold (8c / 1k → R$ 20 = 250.000 gold)
+    fireEvent.change(screen.getByLabelText("Valor em reais"), { target: { value: "20" } });
+    expect(screen.getByLabelText("Gold para calcular")).toHaveValue("250.000");
+    expect(screen.getByLabelText("Valor em reais")).toHaveValue("20");
+    fireEvent.change(screen.getByLabelText("Valor em reais"), { target: { value: "1.000,50" } });
+    expect(screen.getByLabelText("Gold para calcular")).toHaveValue("12.506.250");
+    fireEvent.blur(screen.getByLabelText("Valor em reais"));
+    expect(screen.getByLabelText("Valor em reais")).toHaveValue("1000,50");
 
     // Switch to Saco PvE Mode
     fireEvent.click(screen.getByRole("button", { name: "Saco PvE" }));

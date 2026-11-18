@@ -42,6 +42,15 @@ function formatCompactNumber(num: number): string {
   return String(num);
 }
 
+/** Runs e Sacos PvE costumam ser iguais (1 saco por run); mostramos um número só nesse caso. */
+function formatRunsAndBags(runs: number, bags: number): string {
+  return runs === bags ? numberFormat.format(runs) : `${numberFormat.format(runs)} / ${numberFormat.format(bags)}`;
+}
+
+function runsAndBagsLabel(runs: number, bags: number): string {
+  return runs === bags ? "Runs / sacos" : "Runs / sacos PvE";
+}
+
 function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -340,8 +349,9 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
           <h1>Histórico de farm</h1>
           <span>Conferência de runs, diárias operacionais, Torre e conclusão por dia.</span>
         </div>
+      </header>
 
-        <div className="history-top-controls">
+      <div className="history-filter-bar" role="group" aria-label="Filtros do histórico">
           <div className="history-filter-group">
             <Funnel size={15} weight="duotone" />
             <span className="filter-label">Período:</span>
@@ -351,110 +361,28 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
                 className={datePreset === "7" ? "filter-chip filter-chip--active" : "filter-chip"}
                 onClick={() => setDatePreset("7")}
               >
-                Últimos 7 dias
+                7 dias
               </button>
               <button
                 type="button"
                 className={datePreset === "30" ? "filter-chip filter-chip--active" : "filter-chip"}
                 onClick={() => setDatePreset("30")}
               >
-                Últimos 30 dias
+                30 dias
               </button>
               <button
                 type="button"
                 className={datePreset === "all" ? "filter-chip filter-chip--active" : "filter-chip"}
                 onClick={() => setDatePreset("all")}
               >
-                Todo o período
+                Tudo
               </button>
             </div>
           </div>
 
-          <div className="history-filter-selects">
-            <label>
-              <span>Conta:</span>
-              <select
-                value={selectedAccountId}
-                onChange={(e) => {
-                  setSelectedAccountId(e.target.value);
-                  setSelectedCharacterId("");
-                }}
-              >
-                <option value="">Todas as contas</option>
-                {accounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} ({acc.serverName})
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              <span>Personagem:</span>
-              <select
-                value={selectedCharacterId}
-                onChange={(e) => setSelectedCharacterId(e.target.value)}
-              >
-                <option value="">Todos os personagens</option>
-                {availableCharacters.map((char) => (
-                  <option key={char.id} value={char.id}>
-                    {char.name} ({char.className})
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
-      </header>
-
-      {error && <div className="error-banner" role="alert">{error}</div>}
-
-      {/* Unified Period Summary + Event Filter Strip */}
-      {(periodStats || days.length > 0) && (
-        <section className="panel history-overview-bar">
-          {periodStats && (
-            <div className="history-period-summary">
-              <div className="period-stat-item">
-                <small>Dias registrados</small>
-                <strong>{periodStats.activeDays} dias</strong>
-              </div>
-              <div className="period-stat-divider" />
-              <div className="period-stat-item">
-                <small>Runs totais</small>
-                <strong>{numberFormat.format(periodStats.totalRuns)}</strong>
-              </div>
-              <div className="period-stat-divider" />
-              <div className="period-stat-item">
-                <small>Gold acumulado</small>
-                <strong className="gold-text">{formatCompactNumber(periodStats.totalGold)} gold</strong>
-              </div>
-              <div className="period-stat-divider" />
-              <div className="period-stat-item">
-                <small>Sacos PvE</small>
-                <strong>{numberFormat.format(periodStats.totalBags)}</strong>
-              </div>
-              {periodStats.totalRoutineSeconds > 0 && (
-                <>
-                  <div className="period-stat-divider" />
-                  <div className="period-stat-item">
-                    <small>Tempo em rotina</small>
-                    <strong>{formatDetailedDuration(periodStats.totalRoutineSeconds)}</strong>
-                  </div>
-                </>
-              )}
-              <div className="period-stat-divider" />
-              <div className="period-stat-item">
-                <small>Conclusão média</small>
-                <strong className={periodStats.avgCompletionRate >= 90 ? "text-emerald-400" : "text-amber-300"}>
-                  {periodStats.avgCompletionRate}%
-                </strong>
-              </div>
-            </div>
-          )}
-
           {days.length > 0 && (
             <div className="history-event-filters-inline">
-              <span className="filter-label">Filtrar dias por:</span>
+              <span className="filter-label">Dias:</span>
               <div className="filter-chips">
                 <button
                   type="button"
@@ -494,6 +422,83 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
               </div>
             </div>
           )}
+
+          <div className="history-filter-selects">
+            <label>
+              <span>Conta:</span>
+              <select
+                value={selectedAccountId}
+                onChange={(e) => {
+                  setSelectedAccountId(e.target.value);
+                  setSelectedCharacterId("");
+                }}
+              >
+                <option value="">Todas as contas</option>
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.serverName})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Personagem:</span>
+              <select
+                value={selectedCharacterId}
+                onChange={(e) => setSelectedCharacterId(e.target.value)}
+              >
+                <option value="">Todos os personagens</option>
+                {availableCharacters.map((char) => (
+                  <option key={char.id} value={char.id}>
+                    {char.name} ({char.className})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+      </div>
+
+      {error && <div className="error-banner" role="alert">{error}</div>}
+
+      {/* Unified Period Summary + Event Filter Strip */}
+      {periodStats && (
+        <section className="panel history-overview-bar">
+          {periodStats && (
+            <div className="history-period-summary">
+              <div className="period-stat-item">
+                <small>Dias registrados</small>
+                <strong>{periodStats.activeDays} dias</strong>
+              </div>
+              <div className="period-stat-divider" />
+              <div className="period-stat-item">
+                <small>{runsAndBagsLabel(periodStats.totalRuns, periodStats.totalBags)}</small>
+                <strong>{formatRunsAndBags(periodStats.totalRuns, periodStats.totalBags)}</strong>
+              </div>
+              <div className="period-stat-divider" />
+              <div className="period-stat-item">
+                <small>Gold acumulado</small>
+                <strong className="gold-text">{formatCompactNumber(periodStats.totalGold)} gold</strong>
+              </div>
+              {periodStats.totalRoutineSeconds > 0 && (
+                <>
+                  <div className="period-stat-divider" />
+                  <div className="period-stat-item">
+                    <small>Tempo em rotina</small>
+                    <strong>{formatDetailedDuration(periodStats.totalRoutineSeconds)}</strong>
+                  </div>
+                </>
+              )}
+              <div className="period-stat-divider" />
+              <div className="period-stat-item">
+                <small>Conclusão média</small>
+                <strong className={periodStats.avgCompletionRate >= 90 ? "text-emerald-400" : "text-amber-300"}>
+                  {periodStats.avgCompletionRate}%
+                </strong>
+              </div>
+            </div>
+          )}
+
         </section>
       )}
 
@@ -559,9 +564,7 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
                       <div className="day-card-metrics">
                         <span>{formatCompactNumber(day.goldEarned)} gold</span>
                         <span className="dot-sep">·</span>
-                        <span>{day.pveBagsEarned} sacos</span>
-                        <span className="dot-sep">·</span>
-                        <span>{day.runsCompleted} runs</span>
+                        <span>{formatRunsAndBags(day.runsCompleted, day.pveBagsEarned)} runs/sacos</span>
                       </div>
 
                       <div className="day-card-tags">
@@ -610,16 +613,12 @@ export function HistoryPage({ gateway, management }: HistoryPageProps) {
 
                   <div className="history-hero-kpis">
                     <div className="kpi-box">
-                      <small>Runs</small>
-                      <strong>{dayDetail.runsCompleted}</strong>
+                      <small>{runsAndBagsLabel(dayDetail.runsCompleted, dayDetail.pveBagsEarned)}</small>
+                      <strong>{formatRunsAndBags(dayDetail.runsCompleted, dayDetail.pveBagsEarned)}</strong>
                     </div>
                     <div className="kpi-box">
                       <small>Ouro</small>
                       <strong className="gold-text">{numberFormat.format(dayDetail.goldEarned)} gold</strong>
-                    </div>
-                    <div className="kpi-box">
-                      <small>Sacos PvE</small>
-                      <strong>{dayDetail.pveBagsEarned}</strong>
                     </div>
                     <div className="kpi-box">
                       <small>Personagens</small>

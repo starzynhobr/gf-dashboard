@@ -60,6 +60,8 @@ export function GoldCalculatorDialog({
   });
 
   const [gold, setGold] = useState("1000000");
+  // Texto digitado no campo em reais; null = campo exibe o valor calculado a partir do gold.
+  const [brlDraft, setBrlDraft] = useState<string | null>(null);
   const [pveBags, setPveBags] = useState("250");
   const [packageEur, setPackageEur] = useState("3,50");
   const [packageBags, setPackageBags] = useState("250");
@@ -93,6 +95,21 @@ export function GoldCalculatorDialog({
     setUsdRateStr(val);
     const parsed = parseFloat(val.replace(",", "."));
     if (!isNaN(parsed) && parsed > 0) setUsdRate(parsed);
+  };
+
+  const handleBrlChange = (val: string) => {
+    const sanitized = val.replace(/[^\d.,]/g, "");
+    setBrlDraft(sanitized);
+    // "1.234,56" (pt-BR) ou "80.5": ponto só é milhar quando há vírgula decimal.
+    const normalized = sanitized.includes(",") ? sanitized.replace(/\./g, "").replace(",", ".") : sanitized;
+    const brl = Number(normalized);
+    const cents = Number(centsPerThousand.replace(",", "."));
+    if (!Number.isFinite(brl) || brl <= 0 || !Number.isFinite(cents) || cents <= 0) {
+      setGold("");
+      return;
+    }
+    const computedGold = Math.round(((brl * 100) / cents) * 1000);
+    setGold(Number.isSafeInteger(computedGold) ? String(computedGold) : "");
   };
 
   const effectiveBagGoldPrice = pveBagUnitValueGold && pveBagUnitValueGold > 0 ? pveBagUnitValueGold : 1000;
@@ -266,7 +283,10 @@ export function GoldCalculatorDialog({
                     autoFocus
                     inputMode="decimal"
                     value={centsPerThousand}
-                    onChange={(event) => setCentsPerThousand(event.target.value)}
+                    onChange={(event) => {
+                      setCentsPerThousand(event.target.value);
+                      setBrlDraft(null);
+                    }}
                   />
                   <small>c</small>
                 </div>
@@ -280,12 +300,30 @@ export function GoldCalculatorDialog({
                     aria-label="Gold para calcular"
                     inputMode="numeric"
                     value={formatGoldInput(gold)}
-                    onChange={(event) => setGold(event.target.value.replace(/\D/g, ""))}
+                    onChange={(event) => {
+                      setGold(event.target.value.replace(/\D/g, ""));
+                      setBrlDraft(null);
+                    }}
                     placeholder="Ex.: 1.000.000"
                   />
                   <small>gold</small>
                 </div>
-                <small className="calculator-gold-hint">Separado automaticamente a cada milhar.</small>
+              </label>
+
+              <label className="sale-form-field">
+                <span>Ou digite o valor em reais</span>
+                <div className="calculator-input">
+                  <span>R$</span>
+                  <input
+                    aria-label="Valor em reais"
+                    inputMode="decimal"
+                    value={brlDraft ?? calculation.totalBrl.toFixed(2).replace(".", ",")}
+                    onChange={(event) => handleBrlChange(event.target.value)}
+                    onBlur={() => setBrlDraft(null)}
+                    placeholder="Ex.: 80,00"
+                  />
+                </div>
+                <small className="calculator-gold-hint">Gold e reais se atualizam juntos.</small>
               </label>
             </>
           )}
